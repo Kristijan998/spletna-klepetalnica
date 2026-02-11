@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Send, ArrowLeft, Circle, Paperclip, Camera, Smile, X, Download, Image as ImageIcon, Check, CheckCheck } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/Dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export default function ChatWindow({ room, myProfileId, myName, partnerName, onBack, onPartnerOffline }) {
   const darkMode = document.documentElement.classList.contains("dark");
