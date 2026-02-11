@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { db } from "@/api/db";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/Input";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/Chart";
 import { motion, AnimatePresence } from "framer-motion";
