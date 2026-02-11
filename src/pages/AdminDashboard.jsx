@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { db } from "@/api/db";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, ArrowLeft, Ban, LogOut, MessageSquare, Moon, Search, Shield, Sun, Trash2, Users } from "lucide-react";
