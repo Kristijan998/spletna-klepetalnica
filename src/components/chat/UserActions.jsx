@@ -8,7 +8,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/Dialog";
+} from "@/components/ui/dialog";
 import { AlertTriangle, Ban } from "lucide-react";
 
 export default function UserActions({ targetProfile, myProfile, language = "sl" }) {
