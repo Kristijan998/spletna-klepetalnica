@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { db } from "@/api/db";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, ArrowLeft, Users, Image as ImageIcon, X, Camera, Smile, Check, CheckCheck } from "lucide-react";
