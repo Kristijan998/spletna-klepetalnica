@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Klepetalnica">
+  <rect width="256" height="256" rx="48" fill="#1f2937" />
+  <circle cx="96" cy="120" r="32" fill="#a78bfa" />
+  <circle cx="160" cy="120" r="32" fill="#60a5fa" />
+  <path d="M64 176c20 16 44 24 64 24s44-8 64-24" stroke="#e5e7eb" stroke-width="12" fill="none" stroke-linecap="round" />
+</svg>
