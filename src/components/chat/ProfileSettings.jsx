@@ -3,7 +3,7 @@ import { db } from "@/api/db";
 import { Button } from "@/components/ui/Button";
 
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/Label";
+import { Label } from "@/components/ui/label";
 
 import { ArrowLeft, Camera, Loader2, X, Plus } from "lucide-react";
 import { t } from "@/components/utils/translations";
