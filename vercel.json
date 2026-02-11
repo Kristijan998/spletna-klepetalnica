@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/webchat.io/(.*)", "destination": "/webchat.io/index.html" }
+  ]
+}
