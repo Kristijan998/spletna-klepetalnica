@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
-import { createPageUrl } from "@/utils";
+import { createPageUrl } from "@/utils/index";
 import { t } from "@/components/utils/translations";
 
 export default function TermsOfUse() {
