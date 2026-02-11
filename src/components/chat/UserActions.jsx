@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { db } from "@/api/db";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/Label";
 import {

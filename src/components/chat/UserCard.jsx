@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
 import { t } from "@/components/utils/translations";
 import UserActions from "./UserActions";
