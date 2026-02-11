@@ -7,7 +7,7 @@ import { Send, ArrowLeft, Users, Image as ImageIcon, X, Camera, Smile, Check, Ch
 import EmojiPicker from "emoji-picker-react";
 import GroupMembers from "./GroupMembers";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/Dialog";
 
 export default function GroupChat({ group, myProfileId, myName, onBack, language = "sl" }) {
   const darkMode = document.documentElement.classList.contains("dark");

@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { db } from "@/api/db";
 import { Button } from "@/components/ui/Button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/Textarea";
+import { Label } from "@/components/ui/Label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/Dialog";
 import { AlertTriangle, Ban } from "lucide-react";
 
 export default function UserActions({ targetProfile, myProfile, language = "sl" }) {
