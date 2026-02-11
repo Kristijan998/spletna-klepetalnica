@@ -8,8 +8,8 @@ const __dirname = dirname(__filename)
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  // Lokalno in produkcija: aplikacija je na korenu domene
-  base: '/',
+  // Lokalno in produkcija: aplikacija je na podpotu /webchat.io/
+  base: '/webchat.io/',
   logLevel: 'error', // Suppress warnings, only show errors
   server: {
     port: 5173,
