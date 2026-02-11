@@ -8,9 +8,8 @@ const __dirname = dirname(__filename)
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  // Lokalno (npm run dev): aplikacija je na http://localhost:5173/
-  // Produkcija (npr. GitHub Pages): aplikacija je pod /webchat.io/
-  base: mode === 'production' ? '/webchat.io/' : '/',
+  // Lokalno in produkcija: aplikacija je na korenu domene
+  base: '/',
   logLevel: 'error', // Suppress warnings, only show errors
   server: {
     port: 5173,
