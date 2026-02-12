@@ -36,8 +36,8 @@ const STORAGE_GUEST_RESTORE = "guest_restore_v1";
 const STORAGE_LANGUAGE = "chat_language";
 
 // How long a user is considered online without heartbeat updates.
-// Keep short in localStorage mode to avoid "ghost" users after closing a tab.
-const ONLINE_STALE_MS = 20 * 1000;
+// Keep reasonably short; we use 60s so users remain visible as "recently active" for one minute.
+const ONLINE_STALE_MS = 60 * 1000;
 
 const AVATAR_COLORS = [
   "#8b5cf6",
@@ -241,7 +241,8 @@ export default function Home() {
   }, []);
 
   const logoutGuest = useCallback(async (options = {}) => {
-    const { preserveProfile = false } = options;
+    // By default preserve the profile but mark it offline and block immediate re-login
+    const { preserveProfile = true } = options;
     const id = myProfile?.id;
     setMyProfile(null);
     setSelectedRoom(null);
@@ -249,7 +250,18 @@ export default function Home() {
     setView("main");
     clearGuestAuth();
     if (id) {
-      await markProfileOffline(id);
+      try {
+        // Mark offline and set a temporary logout block to prevent immediate re-login (5 minutes)
+        const blockUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        await db.entities.ChatProfile.update(id, {
+          is_online: false,
+          is_typing: false,
+          last_activity: new Date().toISOString(),
+          logout_block_until: blockUntil,
+        });
+      } catch (err) {
+        console.error("Error marking profile offline on logout:", err);
+      }
       if (!preserveProfile) {
         try {
           await db.entities.ChatProfile.delete(id);
@@ -471,11 +483,13 @@ export default function Home() {
         return;
       }
 
-      const visibleProfiles = (allProfiles || [])
+      const myCountry = myProfile?.country || "";
+
+      // Include both online and offline profiles, but show online ones first.
+      const candidates = (allProfiles || [])
         .filter((p) => p?.id && p.id !== myProfile.id)
         .filter((p) => !p?.is_admin)
         .filter((p) => p?.is_banned !== true)
-        .filter(isProfileOnline)
         .filter((p) => {
           const myBlocked = myProfile?.blocked_users || [];
           const theirBlocked = p?.blocked_users || [];
@@ -484,25 +498,35 @@ export default function Home() {
           return true;
         });
 
-      const myCountry = myProfile?.country || "";
-      const sortedProfiles = (visibleProfiles || [])
-        .map((profile, idx) => ({ profile, idx }))
-        .sort((a, b) => {
-          const aPriority = getCountryPriority(a.profile?.country, myCountry);
-          const bPriority = getCountryPriority(b.profile?.country, myCountry);
-          if (aPriority !== bPriority) return aPriority - bPriority;
+      const online = [];
+      const offline = [];
 
-          const aGroup = getCountryGroupKey(a.profile?.country, myCountry);
-          const bGroup = getCountryGroupKey(b.profile?.country, myCountry);
-          if (aGroup !== bGroup) return aGroup.localeCompare(bGroup, "sl");
+      for (const profile of candidates) {
+        if (isProfileOnline(profile)) online.push(profile);
+        else offline.push(profile);
+      }
 
-          const aName = normalizeName(a.profile?.display_name);
-          const bName = normalizeName(b.profile?.display_name);
-          if (aName !== bName) return aName.localeCompare(bName, "sl");
+      const sortProfiles = (list) =>
+        (list || [])
+          .map((profile, idx) => ({ profile, idx }))
+          .sort((a, b) => {
+            const aPriority = getCountryPriority(a.profile?.country, myCountry);
+            const bPriority = getCountryPriority(b.profile?.country, myCountry);
+            if (aPriority !== bPriority) return aPriority - bPriority;
 
-          return a.idx - b.idx;
-        })
-        .map((item) => item.profile);
+            const aGroup = getCountryGroupKey(a.profile?.country, myCountry);
+            const bGroup = getCountryGroupKey(b.profile?.country, myCountry);
+            if (aGroup !== bGroup) return aGroup.localeCompare(bGroup, "sl");
+
+            const aName = normalizeName(a.profile?.display_name);
+            const bName = normalizeName(b.profile?.display_name);
+            if (aName !== bName) return aName.localeCompare(bName, "sl");
+
+            return a.idx - b.idx;
+          })
+          .map((item) => item.profile);
+
+      const sortedProfiles = [...sortProfiles(online), ...sortProfiles(offline)];
 
       const visibleGroups = (allGroups || []).filter((g) => g?.id);
 
@@ -541,17 +565,18 @@ export default function Home() {
             })
           );
           const shouldNotify = view === "main" && activeTab === "users" && !selectedRoom && !selectedGroup;
-          if (unreadInitRef.current && shouldNotify) {
-            const profileById = new Map((allProfiles || []).map((p) => [p.id, p]));
-            Object.entries(counts).forEach(([partnerId, count]) => {
-              const previous = lastUnreadByProfileIdRef.current?.[partnerId] || 0;
-              if (count > previous) {
-                const partner = profileById.get(partnerId);
-                const name = partner?.display_name || "Uporabnik";
-                toast.message(`Novo sporočilo: ${name}`);
-              }
-            });
-          }
+          // Notifications for new messages are disabled per user preference.
+          // if (unreadInitRef.current && shouldNotify) {
+          //   const profileById = new Map((allProfiles || []).map((p) => [p.id, p]));
+          //   Object.entries(counts).forEach(([partnerId, count]) => {
+          //     const previous = lastUnreadByProfileIdRef.current?.[partnerId] || 0;
+          //     if (count > previous) {
+          //       const partner = profileById.get(partnerId);
+          //       const name = partner?.display_name || "Uporabnik";
+          //       // toast.message(`Novo sporočilo: ${name}`);
+          //     }
+          //   });
+          // }
           lastUnreadByProfileIdRef.current = counts;
           unreadInitRef.current = true;
           setUnreadByProfileId(counts);
@@ -622,11 +647,18 @@ export default function Home() {
     // We avoid relying on is_online alone because stale/ghost profiles can remain true.
     const allProfiles = await db.entities.ChatProfile.list("-last_activity", 300);
     const needle = trimmed.toLocaleLowerCase("sl");
+    const now = Date.now();
     return (allProfiles || []).some((p) => {
       const n = String(p?.display_name || "").trim().toLocaleLowerCase("sl");
       if (!n || n !== needle) return false;
       if (p?.is_banned === true) return false;
-      return isProfileOnline(p);
+      // Consider name taken if the profile is currently online or has a recent logout block
+      if (isProfileOnline(p)) return true;
+      if (p?.logout_block_until) {
+        const until = new Date(p.logout_block_until).getTime();
+        if (!Number.isNaN(until) && until > now) return true;
+      }
+      return false;
     });
   }, []);
 
@@ -1124,7 +1156,7 @@ export default function Home() {
             myName={myProfile.display_name}
             partnerName={partnerName}
             onBack={() => setSelectedRoom(null)}
-            onPartnerOffline={() => toast.message(language === "sl" ? "Uporabnik je odšel" : "User went offline")}
+            onPartnerOffline={() => {}}
           />
         </div>
         <InactivityMonitor isActive={Boolean(myProfile?.id)} onLogout={logoutGuest} onStayActive={() => markProfileOnline(myProfile.id)} />

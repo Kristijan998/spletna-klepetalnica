@@ -170,12 +170,25 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             (!msg.read_by || !msg.read_by.includes(myProfileId))
         );
 
+        if (unreadMessages.length === 0) return;
+
         for (const msg of unreadMessages) {
           const updatedReadBy = [...(msg.read_by || []), myProfileId];
           await db.entities.ChatMessage.update(msg.id, {
             read_by: updatedReadBy,
             read_at: new Date().toISOString(),
           });
+        }
+
+        // Broadcast the update so other tabs/clients reload quickly
+        if (typeof BroadcastChannel !== 'undefined') {
+          try {
+            const channel = new BroadcastChannel('local_db_updates');
+            channel.postMessage({ entity: 'ChatMessage', action: 'update', room_id: room?.id });
+            channel.close();
+          } catch (e) {
+            console.error('BroadcastChannel send error:', e);
+          }
         }
       } catch (error) {
         console.error("Error marking messages as read:", error);
@@ -248,11 +261,23 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
         messageData.image_url = file_url;
       }
 
-      await db.entities.ChatMessage.create(messageData);
+      const createdMsg = await db.entities.ChatMessage.create(messageData);
 
       await db.entities.ChatRoom.update(room.id, {
         last_message: content || "📎 Priponka"
       });
+
+      // Broadcast the new message/room update so other tabs/clients reorder and reload immediately
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const channel = new BroadcastChannel('local_db_updates');
+          channel.postMessage({ entity: 'ChatMessage', action: 'create', id: createdMsg?.id, room_id: room?.id });
+          channel.postMessage({ entity: 'ChatRoom', action: 'update', id: room?.id });
+          channel.close();
+        } catch (e) {
+          console.error('BroadcastChannel send error:', e);
+        }
+      }
 
       setAttachedFile(null);
       setAttachedImage(null);
