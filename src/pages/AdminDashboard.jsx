@@ -4,7 +4,7 @@ import { db } from "@/api/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/Chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, ArrowLeft, Ban, LogOut, MessageSquare, Moon, Search, Shield, Sun, Trash2, Users } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
