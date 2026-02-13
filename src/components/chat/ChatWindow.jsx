@@ -221,25 +221,20 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
     e.preventDefault();
     if ((!newMessage.trim() && !attachedFile && !attachedImage) || sending) return;
 
+    const content = newMessage.trim();
+    setSending(true);
+
     const quota = getSendQuota(messages);
     if (quota.remaining <= 0) {
-      toast.error(
-        quota.reason === "before_reply"
-        if (unreadMessages.length === 0) return;
+      if (quota.reason === "before_reply") {
+        toast.error("Počakaj na odgovor partnerja, preveč sporočil.");
+      } else {
+        toast.error("Dosežena kvota za pošiljanje sporočil.");
+      }
+      setSending(false);
+      return;
+    }
 
-        // Update all unread messages in parallel for speed
-        await Promise.all(
-          unreadMessages.map((msg) => {
-            const updatedReadBy = [...(msg.read_by || []), myProfileId];
-            return db.entities.ChatMessage.update(msg.id, {
-              read_by: updatedReadBy,
-              read_at: new Date().toISOString(),
-            }).catch((err) => {
-              console.error('Error updating read_by for', msg.id, err);
-            });
-          })
-        );
-    
     // Clear typing status
     setIsTyping(false);
     if (typingTimeoutRef.current) {
@@ -427,11 +422,12 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-      const interval = setInterval(loadMessages, 1000);
+        {messages.length === 0 && (
           <div className={`text-center ${darkMode ? "text-gray-500" : "text-gray-400"} text-sm py-12`}>
             <p>Začni pogovor z {partnerName}! 💬</p>
           </div>
         )}
+
         <AnimatePresence initial={false}>
           {messages.map((msg) => {
             const isMe = msg.sender_profile_id === myProfileId;
@@ -442,13 +438,13 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
-      const typingInterval = setInterval(checkTypingStatus, 1000);
+                <div
                   className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                     isMe
                       ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-br-md"
-                      : darkMode 
-                        ? "bg-gray-800 border border-gray-700 text-gray-200 rounded-bl-md shadow-sm"
-                        : "bg-white border border-gray-100 text-gray-800 rounded-bl-md shadow-sm"
+                      : darkMode
+                      ? "bg-gray-800 border border-gray-700 text-gray-200 rounded-bl-md shadow-sm"
+                      : "bg-white border border-gray-100 text-gray-800 rounded-bl-md shadow-sm"
                   }`}
                 >
                   {!isMe && (
