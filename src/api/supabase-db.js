@@ -100,17 +100,60 @@ export function createSupabaseDbClient(supabase) {
       UploadFile: async ({ file }) => {
         if (!file) throw new Error("Manjka datoteka");
 
-        const path = generateUploadPath(file);
-        const { error: uploadError } = await supabase.storage.from(storageBucket).upload(path, file, {
-          upsert: false,
-          cacheControl: "3600",
-        });
-        if (uploadError) throw new Error(uploadError.message);
+        // Try Supabase storage first
+        try {
+          const path = generateUploadPath(file);
+          const { error: uploadError } = await supabase.storage.from(storageBucket).upload(path, file, {
+            upsert: false,
+            cacheControl: "3600",
+          });
+          if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage.from(storageBucket).getPublicUrl(path);
-        const file_url = data?.publicUrl;
-        if (!file_url) throw new Error("Upload succeeded but URL is missing");
-        return { file_url };
+          const { data } = supabase.storage.from(storageBucket).getPublicUrl(path);
+          const file_url = data?.publicUrl;
+          if (!file_url) throw new Error("Upload succeeded but URL is missing");
+          return { file_url };
+        } catch (err) {
+          // If Supabase upload failed (e.g. bucket not found or permissions), fall back to local server upload
+          const msg = String(err?.message || err || "").toLowerCase();
+          if (msg.includes("bucket not found") || msg.includes("new row violates") || msg.includes("permission") || msg.includes("not found")) {
+            // Read file as base64 and POST to local server /upload
+            try {
+              const readAsBase64 = (file) =>
+                new Promise((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onerror = () => reject(new Error("Failed to read file"));
+                  reader.onload = () => {
+                    const result = reader.result;
+                    // result is something like data:<mime>;base64,ABC
+                    const parts = String(result).split(",");
+                    resolve({ base64: parts[1], prefix: parts[0] });
+                  };
+                  reader.readAsDataURL(file);
+                });
+
+              const { base64 } = await readAsBase64(file);
+              const filename = file.name || `upload-${Date.now()}`;
+              const resp = await fetch("/upload", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename, base64, contentType: file.type }),
+              });
+              if (!resp.ok) {
+                const body = await resp.text();
+                throw new Error(`Local upload failed: ${body}`);
+              }
+              const body = await resp.json();
+              if (!body.file_url) throw new Error("Local upload did not return file_url");
+              return { file_url: body.file_url };
+            } catch (localErr) {
+              throw new Error(`Upload failed (supabase + local fallback): ${localErr?.message || localErr}`);
+            }
+          }
+
+          // Other errors bubble up
+          throw new Error(err?.message || err);
+        }
       },
     },
   };

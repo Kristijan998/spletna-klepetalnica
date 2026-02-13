@@ -96,6 +96,30 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 
+// Serve uploaded files from server/uploads
+const UPLOADS_DIR = path.resolve(DATA_DIR, "uploads");
+app.use("/uploads", express.static(UPLOADS_DIR));
+
+app.post("/upload", async (req, res) => {
+  try {
+    const { filename, contentType, base64 } = req.body || {};
+    if (!filename || !base64) return res.status(400).json({ error: "Missing filename or base64" });
+
+    await mkdir(UPLOADS_DIR, { recursive: true });
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const filePath = path.join(UPLOADS_DIR, safeName);
+    const buffer = Buffer.from(base64, "base64");
+    await writeFile(filePath, buffer);
+
+    const host = req.get("host");
+    const protocol = req.protocol;
+    const url = `${protocol}://${host}/uploads/${encodeURIComponent(safeName)}`;
+    res.json({ file_url: url });
+  } catch (err) {
+    res.status(500).json({ error: err?.message || "Upload failed" });
+  }
+});
+
 app.get("/health", (_req, res) => {
   res.json({ ok: true, mode: "local-shared", dbPath: DB_PATH });
 });

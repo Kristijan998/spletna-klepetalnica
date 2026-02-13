@@ -225,15 +225,20 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
     if (quota.remaining <= 0) {
       toast.error(
         quota.reason === "before_reply"
-          ? `Lahko pošlješ največ ${MAX_BEFORE_REPLY} sporočila, preden ti uporabnik odpiše.`
-          : `Lahko pošlješ največ ${MAX_AFTER_REPLY} sporočil po zadnjem odzivu uporabnika.`
-      );
-      return;
-    }
-    
-    setSending(true);
-    const content = newMessage.trim();
-    setNewMessage("");
+        if (unreadMessages.length === 0) return;
+
+        // Update all unread messages in parallel for speed
+        await Promise.all(
+          unreadMessages.map((msg) => {
+            const updatedReadBy = [...(msg.read_by || []), myProfileId];
+            return db.entities.ChatMessage.update(msg.id, {
+              read_by: updatedReadBy,
+              read_at: new Date().toISOString(),
+            }).catch((err) => {
+              console.error('Error updating read_by for', msg.id, err);
+            });
+          })
+        );
     
     // Clear typing status
     setIsTyping(false);
@@ -422,7 +427,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-        {messages.length === 0 && (
+      const interval = setInterval(loadMessages, 1000);
           <div className={`text-center ${darkMode ? "text-gray-500" : "text-gray-400"} text-sm py-12`}>
             <p>Začni pogovor z {partnerName}! 💬</p>
           </div>
@@ -437,7 +442,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex ${isMe ? "justify-end" : "justify-start"}`}
               >
-                <div
+      const typingInterval = setInterval(checkTypingStatus, 1000);
                   className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                     isMe
                       ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-br-md"
