@@ -369,17 +369,22 @@ export default function Home() {
       channel.onmessage = (event) => {
         console.log('\uD83D\uDCE1 BroadcastChannel event:', event.data);
         const entity = event.data?.entity;
-        if (!entity) return;
-        // Reload on any meaningful entity change so rooms/messages appear instantly.
+        const action = event.data?.action;
+        // Always reload on entity changes
         if (loadDataRef.current && ["ChatProfile", "ChatRoom", "ChatMessage", "ChatGroup", "GroupMessage"].includes(entity)) {
-          console.log("\uD83D\uDD04 Reloading data after", entity);
-          loadDataRef.current();
+          // If ChatMessage was updated (e.g. marked as read), reload unread counts
+          if (entity === "ChatMessage" && action === "update") {
+            // Only reload unread counts, not all data
+            if (typeof reloadUnreadCounts === 'function') reloadUnreadCounts();
+          } else {
+            loadDataRef.current();
+          }
         }
       };
     } else {
       console.error('BroadcastChannel NOT supported in this browser!');
     }
-    
+
     // Also listen to storage events as fallback
     const onStorageChange = (e) => {
       console.log('\uD83D\uDCBE Storage event:', e.key);
@@ -397,6 +402,40 @@ export default function Home() {
       if (channel) channel.close();
     };
   }, []);
+
+  // Helper to reload unread counts only
+  const reloadUnreadCounts = async () => {
+    if (!myProfile?.id) return;
+    try {
+      const allRooms = await db.entities.ChatRoom.list("-updated_date", 300);
+      const myRooms = (allRooms || []).filter((r) =>
+        Array.isArray(r?.participant_ids) ? r.participant_ids.includes(myProfile.id) : false
+      );
+      const counts = {};
+      await Promise.all(
+        myRooms.map(async (room) => {
+          const partnerId = room?.participant_ids?.find((id) => id !== myProfile.id) || null;
+          if (!partnerId || !room?.id) return;
+          const messages = await db.entities.ChatMessage.filter(
+            { room_id: room.id },
+            "created_date",
+            100
+          );
+          const unread = (messages || []).filter(
+            (msg) =>
+              msg.sender_profile_id !== myProfile.id &&
+              (!msg.read_by || !msg.read_by.includes(myProfile.id))
+          ).length;
+          if (unread > 0) {
+            counts[partnerId] = (counts[partnerId] || 0) + unread;
+          }
+        })
+      );
+      setUnreadByProfileId(counts);
+    } catch (error) {
+      console.error("Error reloading unread counts:", error);
+    }
+  };
   
   // Activity monitoring for current profile
   useEffect(() => {

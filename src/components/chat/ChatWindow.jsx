@@ -641,7 +641,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             type="submit"
             disabled={(!newMessage.trim() && !attachedFile && !attachedImage) || sending}
             size="icon"
-            className="h-11 w-11 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-200/50"
+            className="h-11 w-11 rounded-xl bg-violet-600 text-white hover:bg-violet-700 focus:ring-2 focus:ring-violet-400"
           >
             <Send className="w-4 h-4" />
           </Button>
