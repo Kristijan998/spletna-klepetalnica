@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db } from "@/api/db";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -62,8 +62,8 @@ function randomAvatarColor() {
 
 function getGenderAvatarColor(gender) {
   const normalized = String(gender || "").trim().toLocaleLowerCase("sl");
-  if (normalized === "moški" || normalized === "moski") return "#3b82f6";
-  if (normalized === "ženska" || normalized === "zenska") return "#ec4899";
+  if (normalized === "moÅ¡ki" || normalized === "moski") return "#3b82f6";
+  if (normalized === "Å¾enska" || normalized === "zenska") return "#ec4899";
   return randomAvatarColor();
 }
 
@@ -256,11 +256,11 @@ export default function Home() {
     const appTitle = isEn ? "Web chat" : "Klepetalnica";
     const chromeThemeColor = darkMode ? "#162a4a" : "#f4f7ff";
     const seoTitle = isEn
-      ? "Chat | Free chat in English"
-      : "Spletna klepetalnica | Brezplačen klepet v slovenščini";
+      ? "Chattko - Free Global Web Chat & Online Rooms"
+      : "Chattko - Brezplacna spletna klepetalnica v slovenscini";
     const seoDescription = isEn
-      ? "Join our web chat and meet new people. Free anonymous chat in English."
-      : "Pridruži se naši spletni klepetalnici in spoznaj nove ljudi v Sloveniji.";
+      ? "Welcome to Chattko! Join our global web chat rooms for free. Meet new friends from all over the world in real-time."
+      : "Pridruzi se Chattko, najboljsi slovenski klepetalnici. Klepetaj v zivo, spoznaj nove ljudi in se zabavaj popolnoma brezplacno.";
 
     const manifestLink = document.querySelector('link#app-manifest[rel="manifest"]');
     if (manifestLink) {
@@ -1129,7 +1129,7 @@ export default function Home() {
         setSelectedGroup({ ...group, member_ids: [...(group.member_ids || []), myProfile.id], member_count: (group.member_count || memberIds.length) + 1 });
       } catch (error) {
         console.error("Join group error:", error);
-        toast.error(language === "sl" ? "Pridružitev ni uspela" : "Failed to join");
+        toast.error(language === "sl" ? "PridruÅ¾itev ni uspela" : "Failed to join");
       }
     },
     [language, loadData, myProfile?.id]
@@ -1209,10 +1209,10 @@ export default function Home() {
             title={
               darkMode
                 ? language === "sl"
-                  ? "Svetli način"
+                  ? "Svetli naÄin"
                   : "Light mode"
                 : language === "sl"
-                  ? "Temni način"
+                  ? "Temni naÄin"
                   : "Dark mode"
             }
           >
@@ -1364,7 +1364,7 @@ export default function Home() {
                 size="icon"
                 onClick={toggleTheme}
                 className={`rounded-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                title={darkMode ? (language === "sl" ? "Svetli način" : "Light mode") : (language === "sl" ? "Temni način" : "Dark mode")}
+                title={darkMode ? (language === "sl" ? "Svetli naÄin" : "Light mode") : (language === "sl" ? "Temni naÄin" : "Dark mode")}
               >
                 {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </Button>
@@ -1580,3 +1580,5 @@ export default function Home() {
     </div>
   );
 }
+
+
