@@ -103,7 +103,7 @@ const CITIES_BY_COUNTRY = {
 export default function GuestRegistration({ onRegister, isLoading, language, onLanguageDetect, darkMode, onCheckName }) {
   const [form, setForm] = useState({
     display_name: "",
-    birth_year: "2000",
+    birth_year: "",
     gender: "",
     country: "",
     city: "",
@@ -116,6 +116,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
   const [checkedName, setCheckedName] = useState("");
   const [nameCheckError, setNameCheckError] = useState("");
   const [submitError, setSubmitError] = useState("");
+  const [birthYearOpen, setBirthYearOpen] = useState(false);
   const nameCheckRequestRef = useRef(0);
   
   const funnyNamesSl = [
@@ -140,6 +141,28 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
   for (let year = currentYear - 13; year >= currentYear - 100; year--) {
     birthYearOptions.push(year);
   }
+
+  useEffect(() => {
+    if (!birthYearOpen) return;
+
+    let attempts = 0;
+    const maxAttempts = 12;
+
+    const scrollToYear2000 = () => {
+      const year2000 = document.querySelector('[data-birth-year-option="2000"]');
+      if (year2000) {
+        year2000.scrollIntoView({ block: "center" });
+        return;
+      }
+
+      attempts += 1;
+      if (attempts < maxAttempts) {
+        window.requestAnimationFrame(scrollToYear2000);
+      }
+    };
+
+    window.requestAnimationFrame(scrollToYear2000);
+  }, [birthYearOpen]);
 
   useEffect(() => {
     
@@ -402,13 +425,23 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("register.birthYear", language)}</Label>
-              <Select value={form.birth_year.toString()} onValueChange={(v) => setForm({ ...form, birth_year: v })}>
+              <Select
+                value={form.birth_year.toString()}
+                onValueChange={(v) => setForm({ ...form, birth_year: v })}
+                onOpenChange={setBirthYearOpen}
+              >
                 <SelectTrigger className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}>
                   <SelectValue placeholder={t("register.selectYear", language)} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {birthYearOptions.map(year => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                    <SelectItem
+                      key={year}
+                      value={year.toString()}
+                      data-birth-year-option={year === 2000 ? "2000" : undefined}
+                    >
+                      {year}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

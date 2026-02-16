@@ -38,6 +38,8 @@ const STORAGE_LANGUAGE = "chat_language";
 // How long a user is considered online without heartbeat updates.
 // Keep reasonably short; we use 60s so users remain visible as "recently active" for one minute.
 const ONLINE_STALE_MS = 60 * 1000;
+// How long offline users stay visible in Users tab before they are hidden.
+const OFFLINE_VISIBLE_MS = 3 * 60 * 1000;
 
 const AVATAR_COLORS = [
   "#8b5cf6",
@@ -105,6 +107,14 @@ function isProfileOnline(profile) {
   const last = new Date(profile.last_activity).getTime();
   if (Number.isNaN(last)) return false;
   return Date.now() - last < ONLINE_STALE_MS;
+}
+
+function isRecentlyOffline(profile) {
+  if (!profile?.last_activity) return false;
+  const last = new Date(profile.last_activity).getTime();
+  if (Number.isNaN(last)) return false;
+  const age = Date.now() - last;
+  return age >= ONLINE_STALE_MS && age < OFFLINE_VISIBLE_MS;
 }
 
 function normalizeCountry(value) {
@@ -524,7 +534,7 @@ export default function Home() {
 
       const myCountry = myProfile?.country || "";
 
-      // Include both online and offline profiles, but show online ones first.
+      // Show online users first, then recently offline users (up to 3 minutes) at the bottom.
       const candidates = (allProfiles || [])
         .filter((p) => p?.id && p.id !== myProfile.id)
         .filter((p) => !p?.is_admin)
@@ -538,11 +548,10 @@ export default function Home() {
         });
 
       const online = [];
-      const offline = [];
-
+      const offlineRecent = [];
       for (const profile of candidates) {
         if (isProfileOnline(profile)) online.push(profile);
-        else offline.push(profile);
+        else if (isRecentlyOffline(profile)) offlineRecent.push(profile);
       }
 
       const sortProfiles = (list) =>
@@ -565,7 +574,7 @@ export default function Home() {
           })
           .map((item) => item.profile);
 
-      const sortedProfiles = [...sortProfiles(online), ...sortProfiles(offline)];
+      const sortedProfiles = [...sortProfiles(online), ...sortProfiles(offlineRecent)];
 
       const visibleGroups = (allGroups || []).filter((g) => g?.id);
 
