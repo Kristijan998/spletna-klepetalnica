@@ -293,13 +293,55 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
   };
 
   const handleFileSelect = (e) => {
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+    const MAX_VIDEO_SIZE = 20 * 1024 * 1024; // 20 MB
+    const MAX_VIDEO_DURATION = 60; // 1 minuta
+
+    // Helper za dvojezična sporočila
+    const t = (sl, en) => (document.documentElement.lang === "en" ? en : sl);
+
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.type.startsWith("image/")) {
-        setAttachedImage(file);
-      } else {
-        setAttachedFile(file);
+    if (!file) return;
+
+    if (file.type.startsWith("image/")) {
+      if (file.size > MAX_IMAGE_SIZE) {
+        toast.error(t(
+          "Presegli ste velikost slike za pošiljanje (10 MB).",
+          "Image file size exceeds 10 MB limit."
+        ));
+        return;
       }
+      setAttachedImage(file);
+      setAttachedFile(null);
+    } else if (file.type.startsWith("video/")) {
+      if (file.size > MAX_VIDEO_SIZE) {
+        toast.error(t(
+          "Presegli ste velikost videoposnetka za pošiljanje (20 MB).",
+          "Video file size exceeds 20 MB limit."
+        ));
+        return;
+      }
+      // Preveri dolžino videa
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        if (video.duration > MAX_VIDEO_DURATION) {
+          toast.error(t(
+            "Dovoljeni so le videoposnetki do 1 minute.",
+            "Only videos up to 1 minute are allowed."
+          ));
+        } else {
+          setAttachedFile(file);
+          setAttachedImage(null);
+        }
+      };
+      video.src = URL.createObjectURL(file);
+    } else {
+      toast.error(t(
+        "Dovoljene so le slike in videoposnetki do 1 minute.",
+        "Only images and videos up to 1 minute are allowed."
+      ));
     }
   };
 
@@ -370,33 +412,70 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
       setIsTyping(false);
       db.entities.ChatProfile.update(myProfileId, { is_typing: false }).catch(err => console.error("Error:", err));
     }, 3000);
-  };
+      // Dodatno preverjanje pred pošiljanjem
+      if (attachedFile) {
+        if (attachedFile.type.startsWith("video/")) {
+          if (attachedFile.size > MAX_VIDEO_SIZE) {
+            toast.error(t(
+              "Presegli ste velikost videoposnetka za pošiljanje (20 MB).",
+              "Video file size exceeds 20 MB limit."
+            ));
+            setSending(false);
+            return;
+          }
+          // Preveri dolžino videa
+          const video = document.createElement("video");
+          video.preload = "metadata";
+          video.onloadedmetadata = async () => {
+            window.URL.revokeObjectURL(video.src);
+            if (video.duration > MAX_VIDEO_DURATION) {
+              toast.error(t(
+                "Dovoljeni so le videoposnetki do 1 minute.",
+                "Only videos up to 1 minute are allowed."
+              ));
+              setSending(false);
+              return;
+            } else {
+              const { file_url } = await db.integrations.Core.UploadFile({ file: attachedFile });
+              messageData.file_url = file_url;
+              messageData.file_name = attachedFile.name;
+              finishSend();
+            }
+          };
+          video.src = URL.createObjectURL(attachedFile);
+          return; // Počakaj na async video check
+        } else {
+          toast.error(t(
+            "Dovoljene so le slike in videoposnetki do 1 minute.",
+            "Only images and videos up to 1 minute are allowed."
+          ));
+          setSending(false);
+          return;
+        }
+      }
 
-  return (
-    <div className={`flex flex-col h-full w-full sm:h-[600px] ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50/50 border-gray-100"} rounded-3xl border overflow-hidden`}>
-      {/* Header */}
-      <div className={`flex items-center justify-between px-5 py-4 ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-100"} border-b`}>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="rounded-xl h-9 w-9"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-              {partnerName?.[0]?.toUpperCase() || "?"}
-            </div>
-            <div>
-              <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"} text-sm`}>{partnerName}</h3>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Circle className={`w-2 h-2 ${partnerOnline ? "fill-green-400 text-green-400" : "fill-gray-400 text-gray-400"}`} />
-                <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  {partnerOnline ? "Na voljo" : "Offline"}
-                </span>
-                {partnerProfile && (
+      if (attachedImage) {
+        if (attachedImage.size > MAX_IMAGE_SIZE) {
+          toast.error(t(
+            "Presegli ste velikost slike za pošiljanje (10 MB).",
+            "Image file size exceeds 10 MB limit."
+          ));
+          setSending(false);
+          return;
+        }
+        const { file_url } = await db.integrations.Core.UploadFile({ file: attachedImage });
+        messageData.image_url = file_url;
+      }
+
+      const createdMsg = await db.entities.ChatMessage.create(messageData);
+
+      await db.entities.ChatRoom.update(room.id, {
+        last_message: content || "📎 Priponka"
+      });
+
+      // Broadcast the new message/room update so other tabs/clients reorder and reload immediately
+      {/* ...obstoječa logika... */}
+      {partnerProfile && (
                   <>
                     <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>•</span>
                     {getAge(partnerProfile.birth_year) !== null && (

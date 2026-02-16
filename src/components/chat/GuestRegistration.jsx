@@ -103,7 +103,7 @@ const CITIES_BY_COUNTRY = {
 export default function GuestRegistration({ onRegister, isLoading, language, onLanguageDetect, darkMode, onCheckName }) {
   const [form, setForm] = useState({
     display_name: "",
-    birth_year: "",
+    birth_year: "2000",
     gender: "",
     country: "",
     city: "",
