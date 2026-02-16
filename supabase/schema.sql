@@ -98,6 +98,11 @@ create table if not exists public.chat_groups (
 alter table public.chat_groups
   add column if not exists avatar_color text;
 
+-- Group liveness tracking
+alter table public.chat_groups
+  add column if not exists status text not null default 'active',
+  add column if not exists inactive_since timestamptz;
+
 -- Group messages
 create table if not exists public.group_messages (
   id uuid primary key default gen_random_uuid(),

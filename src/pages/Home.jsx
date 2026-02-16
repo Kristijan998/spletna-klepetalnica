@@ -40,6 +40,8 @@ const STORAGE_LANGUAGE = "chat_language";
 const ONLINE_STALE_MS = 60 * 1000;
 // How long offline users stay visible in Users tab before they are hidden.
 const OFFLINE_VISIBLE_MS = 3 * 60 * 1000;
+// Auto-delete groups after 3 minutes with no active members.
+const GROUP_INACTIVE_DELETE_MS = 3 * 60 * 1000;
 
 const AVATAR_COLORS = [
   "#8b5cf6",
@@ -180,6 +182,8 @@ export default function Home() {
   const activityIntervalRef = useRef(null);
   const lastUnreadByProfileIdRef = useRef({});
   const unreadInitRef = useRef(false);
+  const audioContextRef = useRef(null);
+  const lastMessageSoundAtRef = useRef(0);
 
   const prioritizedProfiles = useMemo(() => {
     return (profiles || [])
@@ -204,6 +208,39 @@ export default function Home() {
     },
     [setLanguage]
   );
+
+  const playIncomingMessageSound = useCallback(() => {
+    try {
+      const now = Date.now();
+      if (now - lastMessageSoundAtRef.current < 700) return;
+      lastMessageSoundAtRef.current = now;
+
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioCtx();
+      }
+      const ctx = audioContextRef.current;
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
+
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(920, ctx.currentTime);
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.2);
+    } catch {
+      // ignore audio errors
+    }
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -638,6 +675,82 @@ export default function Home() {
       }
 
       const myCountry = myProfile?.country || "";
+      const nowTs = Date.now();
+      const profilesById = new Map((allProfiles || []).map((p) => [p?.id, p]));
+      const supportsGroupLivenessColumns = (allGroups || []).some(
+        (g) =>
+          Object.prototype.hasOwnProperty.call(g || {}, "status") ||
+          Object.prototype.hasOwnProperty.call(g || {}, "inactive_since")
+      );
+
+      const processedGroups = [];
+      for (const group of allGroups || []) {
+        if (!group?.id) continue;
+
+        const memberIds = Array.isArray(group.member_ids) ? group.member_ids : [];
+        const activeMembers = memberIds.filter((id) => {
+          const profile = profilesById.get(id);
+          return Boolean(profile && isProfileOnline(profile));
+        });
+
+        if (activeMembers.length === 0) {
+          if (supportsGroupLivenessColumns) {
+            const inactiveSinceTs = group?.inactive_since ? new Date(group.inactive_since).getTime() : NaN;
+            const normalizedInactiveTs = Number.isFinite(inactiveSinceTs) ? inactiveSinceTs : nowTs;
+            const inactiveElapsed = nowTs - normalizedInactiveTs;
+
+            if (inactiveElapsed >= GROUP_INACTIVE_DELETE_MS) {
+              try {
+                await db.entities.ChatGroup.delete(group.id);
+              } catch (error) {
+                console.error("Group auto-delete error:", error);
+                processedGroups.push(group);
+              }
+              continue;
+            }
+
+            if (group?.status !== "inactive" || !Number.isFinite(inactiveSinceTs)) {
+              const inactiveIso = new Date(normalizedInactiveTs).toISOString();
+              try {
+                await db.entities.ChatGroup.update(group.id, {
+                  status: "inactive",
+                  inactive_since: inactiveIso,
+                });
+                processedGroups.push({ ...group, status: "inactive", inactive_since: inactiveIso });
+              } catch (error) {
+                console.error("Group set inactive error:", error);
+                processedGroups.push(group);
+              }
+              continue;
+            }
+          } else {
+            const fallbackSinceTs = new Date(group?.updated_date || group?.created_date || 0).getTime();
+            if (Number.isFinite(fallbackSinceTs) && nowTs - fallbackSinceTs >= GROUP_INACTIVE_DELETE_MS) {
+              try {
+                await db.entities.ChatGroup.delete(group.id);
+              } catch (error) {
+                console.error("Group fallback auto-delete error:", error);
+                processedGroups.push(group);
+              }
+              continue;
+            }
+          }
+        } else if (supportsGroupLivenessColumns && (group?.status === "inactive" || group?.inactive_since)) {
+          try {
+            await db.entities.ChatGroup.update(group.id, {
+              status: "active",
+              inactive_since: null,
+            });
+            processedGroups.push({ ...group, status: "active", inactive_since: null });
+          } catch (error) {
+            console.error("Group set active error:", error);
+            processedGroups.push(group);
+          }
+          continue;
+        }
+
+        processedGroups.push(group);
+      }
 
       // Show online users first, then recently offline users (up to 3 minutes) at the bottom.
       const candidates = (allProfiles || [])
@@ -681,7 +794,7 @@ export default function Home() {
 
       const sortedProfiles = [...sortProfiles(online), ...sortProfiles(offlineRecent)];
 
-      const visibleGroups = (allGroups || []).filter((g) => g?.id);
+      const visibleGroups = (processedGroups || []).filter((g) => g?.id);
 
       const myRooms = (allRooms || []).filter((r) =>
         Array.isArray(r?.participant_ids) ? r.participant_ids.includes(myProfile.id) : false
@@ -717,19 +830,23 @@ export default function Home() {
               }
             })
           );
-          const shouldNotify = view === "main" && activeTab === "users" && !selectedRoom && !selectedGroup;
-          // Notifications for new messages are disabled per user preference.
-          // if (unreadInitRef.current && shouldNotify) {
-          //   const profileById = new Map((allProfiles || []).map((p) => [p.id, p]));
-          //   Object.entries(counts).forEach(([partnerId, count]) => {
-          //     const previous = lastUnreadByProfileIdRef.current?.[partnerId] || 0;
-          //     if (count > previous) {
-          //       const partner = profileById.get(partnerId);
-          //       const name = partner?.display_name || "Uporabnik";
-          //       // toast.message(`Novo sporočilo: ${name}`);
-          //     }
-          //   });
-          // }
+          if (unreadInitRef.current) {
+            const openedPartnerId =
+              selectedRoom?.participant_ids?.find((id) => id !== myProfile.id) || null;
+            let shouldPlaySound = false;
+
+            Object.entries(counts).forEach(([partnerId, count]) => {
+              const previous = lastUnreadByProfileIdRef.current?.[partnerId] || 0;
+              if (count > previous && partnerId !== openedPartnerId) {
+                shouldPlaySound = true;
+              }
+            });
+
+            if (shouldPlaySound) {
+              playIncomingMessageSound();
+            }
+          }
+
           lastUnreadByProfileIdRef.current = counts;
           unreadInitRef.current = true;
           directUnreadCounts = counts;
@@ -792,7 +909,7 @@ export default function Home() {
     } catch (error) {
       console.error("Error loading data:", error);
     }
-  }, [myProfile?.id, myProfile?.blocked_users, view, logoutGuest, language, activeTab, selectedRoom, selectedGroup]);
+  }, [myProfile?.id, myProfile?.blocked_users, view, logoutGuest, language, activeTab, selectedRoom, selectedGroup, playIncomingMessageSound]);
 
   // Update ref for cross-tab communication
   useEffect(() => {
@@ -964,6 +1081,8 @@ export default function Home() {
         creator_name: myProfile.display_name,
         member_ids: [myProfile.id],
         member_count: 1,
+        status: "active",
+        inactive_since: null,
         avatar_color: groupData?.avatar_color || randomAvatarColor(),
       };
       if (!payload.name) return;

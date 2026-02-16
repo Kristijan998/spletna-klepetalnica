@@ -117,6 +117,11 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
       }
 
       await db.entities.GroupMessage.create(messageData);
+      await db.entities.ChatGroup.update(group.id, {
+        last_message: content || (messageData.image_url ? "[image]" : ""),
+        status: "active",
+        inactive_since: null,
+      });
       setAttachedImage(null);
       await loadMessages();
       inputRef.current?.focus();
