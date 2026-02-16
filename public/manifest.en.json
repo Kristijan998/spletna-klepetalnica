@@ -1,7 +1,7 @@
 {
-  "name": "Klepetalnica",
-  "short_name": "Klepetalnica",
-  "description": "Anonimno klepetanje v realnem casu.",
+  "name": "Chat",
+  "short_name": "Chat",
+  "description": "Anonymous real-time chat.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#162a4a",

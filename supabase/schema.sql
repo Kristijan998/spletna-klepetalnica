@@ -94,6 +94,10 @@ create table if not exists public.chat_groups (
   last_message text
 );
 
+-- Backward-compatible columns used by app code
+alter table public.chat_groups
+  add column if not exists avatar_color text;
+
 -- Group messages
 create table if not exists public.group_messages (
   id uuid primary key default gen_random_uuid(),
@@ -107,6 +111,11 @@ create table if not exists public.group_messages (
   content text,
   image_url text
 );
+
+-- Read receipts for group chat
+alter table public.group_messages
+  add column if not exists read_by jsonb not null default '[]'::jsonb,
+  add column if not exists read_at timestamptz;
 
 create index if not exists group_messages_group_idx on public.group_messages (group_id);
 

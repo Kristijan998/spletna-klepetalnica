@@ -3,12 +3,15 @@ import { db } from "@/api/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, ArrowLeft, Circle, Paperclip, Camera, Smile, X, Download, Image as ImageIcon, Check, CheckCheck, Loader2 } from "lucide-react";
+import { Send, ArrowLeft, Circle, Paperclip, Camera, Smile, X, Download, Image as ImageIcon, Check, CheckCheck, Loader2, MoreVertical, AlertTriangle, Ban } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
-export default function ChatWindow({ room, myProfileId, myName, partnerName, onBack, onPartnerOffline }) {
+export default function ChatWindow({ room, myProfileId, myName, partnerName, onBack, onPartnerOffline, onUserBlocked, language = "sl" }) {
   const darkMode = document.documentElement.classList.contains("dark");
   const currentYear = new Date().getFullYear();
   const getAge = (birthYear) => {
@@ -26,6 +29,10 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
   const [previewImageUrl, setPreviewImageUrl] = useState(null);
   const [cameraMode, setCameraMode] = useState(null);
   const [uploadStatus, setUploadStatus] = useState(null);
+  const [showReport, setShowReport] = useState(false);
+  const [showBlock, setShowBlock] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [actionSending, setActionSending] = useState(false);
   const [partnerProfile, setPartnerProfile] = useState(null);
   const [partnerIsTyping, setPartnerIsTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -46,7 +53,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
   const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
   const MAX_VIDEO_SIZE = 20 * 1024 * 1024; // 20 MB
   const MAX_VIDEO_DURATION = 60; // 1 minute
-  const t = (sl, en) => (document.documentElement.lang === "en" ? en : sl);
+  const t = (sl, en) => (language === "en" ? en : sl);
 
   const getVideoDuration = (file) =>
     new Promise((resolve) => {
@@ -89,6 +96,57 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
   const stopUploadStatus = () => {
     clearUploadTimer();
     setUploadStatus(null);
+  };
+
+  const handleReportUser = async () => {
+    if (!reportReason.trim()) return;
+
+    setActionSending(true);
+    try {
+      await db.entities.SupportMessage.create({
+        sender_profile_id: myProfileId,
+        sender_name: myName,
+        subject: `${t("Prijava uporabnika", "Report user")}: ${partnerName}`,
+        message: reportReason.trim(),
+        type: "tezava",
+      });
+      setShowReport(false);
+      setReportReason("");
+      toast.success(t("Prijava poslana.", "Report sent."));
+    } catch (error) {
+      console.error("Report user error:", error);
+      toast.error(error?.message || t("Napaka pri posiljanju prijave.", "Error sending report."));
+    } finally {
+      setActionSending(false);
+    }
+  };
+
+  const handleBlockUser = async () => {
+    if (!partnerProfileId) return;
+
+    setActionSending(true);
+    try {
+      const mine = await db.entities.ChatProfile.filter({ id: myProfileId });
+      const current = mine?.[0] || null;
+      if (!current) throw new Error(t("Profila ni mogoce naloziti.", "Could not load your profile."));
+
+      const blockedUsers = Array.isArray(current.blocked_users) ? current.blocked_users : [];
+      if (!blockedUsers.includes(partnerProfileId)) {
+        await db.entities.ChatProfile.update(myProfileId, {
+          blocked_users: [...blockedUsers, partnerProfileId],
+        });
+      }
+
+      setShowBlock(false);
+      toast.success(t("Uporabnik je blokiran.", "User has been blocked."));
+      if (typeof onUserBlocked === "function") onUserBlocked(partnerProfileId);
+      if (typeof onBack === "function") onBack();
+    } catch (error) {
+      console.error("Block user error:", error);
+      toast.error(error?.message || t("Napaka pri blokiranju.", "Error blocking user."));
+    } finally {
+      setActionSending(false);
+    }
   };
 
   const getSendQuota = (allMessages) => {
@@ -584,6 +642,23 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             </div>
           </div>
         </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className={darkMode ? "bg-gray-800 border-gray-700" : "bg-white"}>
+            <DropdownMenuItem onClick={() => setShowReport(true)}>
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              {t("Prijavi", "Report")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowBlock(true)} className="text-red-600 focus:text-red-600">
+              <Ban className="w-4 h-4 mr-2" />
+              {t("Blokiraj", "Block")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Messages */}
@@ -842,6 +917,68 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
               className="w-full h-auto max-h-[80vh] object-contain rounded"
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showReport} onOpenChange={setShowReport}>
+        <DialogContent className={darkMode ? "bg-gray-800 border-gray-700" : "bg-white"}>
+          <DialogHeader>
+            <DialogTitle className={darkMode ? "text-white" : "text-gray-900"}>
+              {t("Prijavi uporabnika", "Report user")} {partnerName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+                {t("Razlog prijave", "Reason for report")}
+              </Label>
+              <Textarea
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                placeholder={t("Opisi problem...", "Describe the issue...")}
+                className={`mt-2 ${darkMode ? "bg-gray-900 border-gray-600 text-white" : ""}`}
+                rows={4}
+                maxLength={500}
+              />
+            </div>
+            <Button
+              onClick={handleReportUser}
+              disabled={!reportReason.trim() || actionSending}
+              className="w-full bg-red-600 hover:bg-red-700"
+            >
+              {actionSending ? t("Posiljam...", "Sending...") : t("Poslji prijavo", "Send report")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showBlock} onOpenChange={setShowBlock}>
+        <DialogContent className={darkMode ? "bg-gray-800 border-gray-700" : "bg-white"}>
+          <DialogHeader>
+            <DialogTitle className={darkMode ? "text-white" : "text-gray-900"}>
+              {t("Blokiraj uporabnika?", "Block user?")} {partnerName}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+              {t(
+                "Blokiran uporabnik te ne bo mogel kontaktirati in ga ne bos vec videl na seznamu.",
+                "Blocked user won't be able to contact you and you won't see them in the list anymore."
+              )}
+            </p>
+            <div className="flex gap-2">
+              <Button onClick={() => setShowBlock(false)} variant="outline" className="flex-1">
+                {t("Preklici", "Cancel")}
+              </Button>
+              <Button
+                onClick={handleBlockUser}
+                disabled={actionSending}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                {actionSending ? t("Blokiram...", "Blocking...") : t("Blokiraj", "Block")}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

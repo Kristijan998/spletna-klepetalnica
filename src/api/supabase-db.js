@@ -25,6 +25,17 @@ function applyCriteria(query, criteria) {
   return query;
 }
 
+function getMissingColumnFromError(error) {
+  const msg = String(error?.message || "");
+  const schemaCacheMatch = msg.match(/Could not find the '([^']+)' column/i);
+  if (schemaCacheMatch?.[1]) return schemaCacheMatch[1];
+
+  const postgresMatch = msg.match(/column ["']?([a-zA-Z0-9_]+)["']? does not exist/i);
+  if (postgresMatch?.[1]) return postgresMatch[1];
+
+  return null;
+}
+
 function createEntityRepo(supabase, tableName) {
   const list = async (orderBy = "-created_date", limit = 50) => {
     const { field, ascending } = parseOrderBy(orderBy);
@@ -49,22 +60,52 @@ function createEntityRepo(supabase, tableName) {
   };
 
   const create = async (data = {}) => {
-    const payload = { ...data };
-    const { data: created, error } = await supabase.from(tableName).insert(payload).select("*").single();
-    if (error) throw new Error(error.message);
-    return created;
+    let payload = { ...data };
+
+    // Compatibility fallback: if schema is missing a column (e.g. read_by/read_at),
+    // retry once per missing key after removing it from payload.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const { data: created, error } = await supabase.from(tableName).insert(payload).select("*").single();
+      if (!error) return created;
+
+      const missingColumn = getMissingColumnFromError(error);
+      if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
+        const { [missingColumn]: _ignored, ...rest } = payload;
+        payload = rest;
+        continue;
+      }
+
+      throw new Error(error.message);
+    }
+
+    throw new Error("Create failed after schema compatibility retries.");
   };
 
   const update = async (id, patch = {}) => {
-    const payload = { ...patch, updated_date: nowIso() };
-    const { data: updated, error } = await supabase
-      .from(tableName)
-      .update(payload)
-      .eq("id", id)
-      .select("*")
-      .single();
-    if (error) throw new Error(error.message);
-    return updated;
+    let payload = { ...patch, updated_date: nowIso() };
+
+    // Compatibility fallback: if schema is missing a column (e.g. read_by/read_at),
+    // retry once per missing key after removing it from payload.
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const { data: updated, error } = await supabase
+        .from(tableName)
+        .update(payload)
+        .eq("id", id)
+        .select("*")
+        .single();
+      if (!error) return updated;
+
+      const missingColumn = getMissingColumnFromError(error);
+      if (missingColumn && Object.prototype.hasOwnProperty.call(payload, missingColumn)) {
+        const { [missingColumn]: _ignored, ...rest } = payload;
+        payload = rest;
+        continue;
+      }
+
+      throw new Error(error.message);
+    }
+
+    throw new Error("Update failed after schema compatibility retries.");
   };
 
   const remove = async (id) => {

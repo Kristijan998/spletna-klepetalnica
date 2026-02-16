@@ -193,6 +193,74 @@ export default function Home() {
     [setLanguage]
   );
 
+  useEffect(() => {
+    const isEn = language === "en";
+    const manifestHref = isEn ? "/manifest.en.json" : "/manifest.sl.json";
+    const appTitle = isEn ? "Chat" : "Klepetalnica";
+    const seoTitle = isEn
+      ? "Chat | Free chat in English"
+      : "Spletna klepetalnica | Brezplačen klepet v slovenščini";
+    const seoDescription = isEn
+      ? "Join our web chat and meet new people. Free anonymous chat in English."
+      : "Pridruži se naši spletni klepetalnici in spoznaj nove ljudi v Sloveniji.";
+
+    const manifestLink = document.querySelector('link#app-manifest[rel="manifest"]');
+    if (manifestLink) {
+      manifestLink.setAttribute("href", manifestHref);
+    }
+
+    let appleTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+    if (!appleTitleMeta) {
+      appleTitleMeta = document.createElement("meta");
+      appleTitleMeta.setAttribute("name", "apple-mobile-web-app-title");
+      document.head.appendChild(appleTitleMeta);
+    }
+    appleTitleMeta.setAttribute("content", appTitle);
+
+    document.documentElement.setAttribute("lang", isEn ? "en" : "sl");
+    document.title = seoTitle;
+
+    let descriptionMeta = document.querySelector('meta[name="description"]');
+    if (!descriptionMeta) {
+      descriptionMeta = document.createElement("meta");
+      descriptionMeta.setAttribute("name", "description");
+      document.head.appendChild(descriptionMeta);
+    }
+    descriptionMeta.setAttribute("content", seoDescription);
+
+    let ogTitle = document.querySelector('meta[property="og:title"]');
+    if (!ogTitle) {
+      ogTitle = document.createElement("meta");
+      ogTitle.setAttribute("property", "og:title");
+      document.head.appendChild(ogTitle);
+    }
+    ogTitle.setAttribute("content", seoTitle);
+
+    let ogDescription = document.querySelector('meta[property="og:description"]');
+    if (!ogDescription) {
+      ogDescription = document.createElement("meta");
+      ogDescription.setAttribute("property", "og:description");
+      document.head.appendChild(ogDescription);
+    }
+    ogDescription.setAttribute("content", seoDescription);
+
+    let twitterTitle = document.querySelector('meta[name="twitter:title"]');
+    if (!twitterTitle) {
+      twitterTitle = document.createElement("meta");
+      twitterTitle.setAttribute("name", "twitter:title");
+      document.head.appendChild(twitterTitle);
+    }
+    twitterTitle.setAttribute("content", seoTitle);
+
+    let twitterDescription = document.querySelector('meta[name="twitter:description"]');
+    if (!twitterDescription) {
+      twitterDescription = document.createElement("meta");
+      twitterDescription.setAttribute("name", "twitter:description");
+      document.head.appendChild(twitterDescription);
+    }
+    twitterDescription.setAttribute("content", seoDescription);
+  }, [language]);
+
   const loadProfileById = useCallback(async (id) => {
     if (!id) return null;
     const matches = await db.entities.ChatProfile.filter({ id });
@@ -582,11 +650,11 @@ export default function Home() {
         Array.isArray(r?.participant_ids) ? r.participant_ids.includes(myProfile.id) : false
       );
 
-      setProfiles(sortedProfiles);
       setGroups(visibleGroups);
       setRooms(myRooms);
       
       // Load unread counts inline
+      let directUnreadCounts = {};
       if (Array.isArray(myRooms) && myRooms.length > 0) {
         try {
           const counts = {};
@@ -627,6 +695,7 @@ export default function Home() {
           // }
           lastUnreadByProfileIdRef.current = counts;
           unreadInitRef.current = true;
+          directUnreadCounts = counts;
           setUnreadByProfileId(counts);
         } catch (error) {
           console.error("Error loading unread counts:", error);
@@ -634,8 +703,21 @@ export default function Home() {
       } else {
         lastUnreadByProfileIdRef.current = {};
         unreadInitRef.current = true;
+        directUnreadCounts = {};
         setUnreadByProfileId({});
       }
+
+      const prioritizedProfiles = (sortedProfiles || [])
+        .map((profile, idx) => ({ profile, idx }))
+        .sort((a, b) => {
+          const bUnread = directUnreadCounts?.[b.profile?.id] || 0;
+          const aUnread = directUnreadCounts?.[a.profile?.id] || 0;
+          if (aUnread !== bUnread) return bUnread - aUnread;
+          return a.idx - b.idx;
+        })
+        .map((item) => item.profile);
+
+      setProfiles(prioritizedProfiles);
 
       // Load unread group counts
       if (Array.isArray(visibleGroups) && visibleGroups.length > 0) {
@@ -855,7 +937,11 @@ export default function Home() {
         toast.success(language === "sl" ? "Skupina ustvarjena" : "Group created");
       } catch (error) {
         console.error("Create group error:", error);
-        toast.error(language === "sl" ? "Ustvarjanje skupine ni uspelo" : "Failed to create group");
+        toast.error(
+          error?.message ||
+            (language === "sl" ? "Ustvarjanje skupine ni uspelo" : "Failed to create group")
+        );
+        throw error;
       }
     },
     [language, loadData, myProfile?.display_name, myProfile?.id]
@@ -1203,8 +1289,16 @@ export default function Home() {
             myProfileId={myProfile.id}
             myName={myProfile.display_name}
             partnerName={partnerName}
+            language={language}
             onBack={() => setSelectedRoom(null)}
             onPartnerOffline={() => {}}
+            onUserBlocked={(blockedId) => {
+              setMyProfile((prev) =>
+                prev ? { ...prev, blocked_users: [...(prev.blocked_users || []), blockedId] } : prev
+              );
+              setProfiles((prev) => (prev || []).filter((p) => p?.id !== blockedId));
+              setSelectedRoom(null);
+            }}
           />
         </div>
         <InactivityMonitor isActive={Boolean(myProfile?.id)} onLogout={logoutGuest} onStayActive={() => markProfileOnline(myProfile.id)} />
@@ -1289,7 +1383,6 @@ export default function Home() {
                     onStartChat={openOrCreateRoom}
                     isCurrentUser={false}
                     language={language}
-                    myProfile={myProfile}
                     unreadCount={unreadByProfileId[p.id] || 0}
                   />
                 ))}
