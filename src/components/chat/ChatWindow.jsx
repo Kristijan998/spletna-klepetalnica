@@ -663,7 +663,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+      <div className="chat-scroll flex-1 overflow-y-auto px-5 py-4 space-y-3">
         {messages.length === 0 && (
           <div className={`text-center ${darkMode ? "text-gray-500" : "text-gray-400"} text-sm py-12`}>
             <p>Začni pogovor z {partnerName}! 💬</p>

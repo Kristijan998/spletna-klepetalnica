@@ -16,6 +16,9 @@
     <meta name="twitter:description" content="Pridruži se naši spletni klepetalnici in spoznaj nove ljudi v Sloveniji.">
     <meta name="twitter:image" content="/og.svg">
     <meta name="robots" content="index,follow">
+    <link rel="alternate" hreflang="sl" href="/sl/" />
+    <link rel="alternate" hreflang="en" href="/en/" />
+    <link rel="alternate" hreflang="x-default" href="/en/" />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -29,6 +32,22 @@
     <link id="app-manifest" rel="manifest" href="/manifest.sl.json">
   </head>
   <body>
+    <script>
+      (function () {
+        try {
+          var path = window.location.pathname.replace(/\/+$/, "") || "/";
+          var params = new URLSearchParams(window.location.search);
+          if (path === "/" && !params.get("lang")) {
+            var storedLang = "";
+            try { storedLang = (localStorage.getItem("chat_language") || "").toLowerCase(); } catch (e) {}
+            var userLang = (navigator.language || navigator.userLanguage || "").toLowerCase();
+            var sourceLang = storedLang === "sl" || storedLang === "en" ? storedLang : userLang;
+            var target = sourceLang.includes("sl") ? "/sl/" : "/en/";
+            window.location.replace(target);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

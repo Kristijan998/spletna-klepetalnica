@@ -206,6 +206,14 @@ export default function Home() {
   );
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const langParam = params.get("lang");
+    if (langParam === "sl" || langParam === "en") {
+      persistLanguage(langParam);
+    }
+  }, [persistLanguage]);
+
+  useEffect(() => {
     const isEn = language === "en";
     const manifestHref = isEn ? "/manifest.en.json" : "/manifest.sl.json";
     const appTitle = isEn ? "Chat" : "Klepetalnica";
