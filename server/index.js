@@ -111,9 +111,8 @@ app.post("/upload", async (req, res) => {
     const buffer = Buffer.from(base64, "base64");
     await writeFile(filePath, buffer);
 
-    const host = req.get("host");
-    const protocol = req.protocol;
-    const url = `${protocol}://${host}/uploads/${encodeURIComponent(safeName)}`;
+    // Return origin-agnostic path so other clients don't get uploader-specific host (e.g. localhost).
+    const url = `/uploads/${encodeURIComponent(safeName)}`;
     res.json({ file_url: url });
   } catch (err) {
     res.status(500).json({ error: err?.message || "Upload failed" });

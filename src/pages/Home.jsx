@@ -186,15 +186,24 @@ export default function Home() {
   const lastMessageSoundAtRef = useRef(0);
 
   const prioritizedProfiles = useMemo(() => {
-    return (profiles || [])
-      .map((profile, idx) => ({ profile, idx }))
-      .sort((a, b) => {
+    const online = [];
+    const offline = [];
+
+    (profiles || []).forEach((profile, idx) => {
+      const item = { profile, idx };
+      if (isProfileOnline(profile)) online.push(item);
+      else offline.push(item);
+    });
+
+    const sortByUnreadThenIndex = (list) =>
+      list.sort((a, b) => {
         const bUnread = unreadByProfileId?.[b.profile?.id] || 0;
         const aUnread = unreadByProfileId?.[a.profile?.id] || 0;
         if (aUnread !== bUnread) return bUnread - aUnread;
         return a.idx - b.idx;
-      })
-      .map((item) => item.profile);
+      });
+
+    return [...sortByUnreadThenIndex(online), ...sortByUnreadThenIndex(offline)].map((item) => item.profile);
   }, [profiles, unreadByProfileId]);
 
   const persistLanguage = useCallback(
@@ -871,7 +880,7 @@ export default function Home() {
         setUnreadByProfileId({});
       }
 
-      const prioritizedProfiles = (sortedProfiles || [])
+      const onlinePrioritized = (online || [])
         .map((profile, idx) => ({ profile, idx }))
         .sort((a, b) => {
           const bUnread = directUnreadCounts?.[b.profile?.id] || 0;
@@ -880,6 +889,18 @@ export default function Home() {
           return a.idx - b.idx;
         })
         .map((item) => item.profile);
+
+      const offlinePrioritized = (offlineRecent || [])
+        .map((profile, idx) => ({ profile, idx }))
+        .sort((a, b) => {
+          const bUnread = directUnreadCounts?.[b.profile?.id] || 0;
+          const aUnread = directUnreadCounts?.[a.profile?.id] || 0;
+          if (aUnread !== bUnread) return bUnread - aUnread;
+          return a.idx - b.idx;
+        })
+        .map((item) => item.profile);
+
+      const prioritizedProfiles = [...onlinePrioritized, ...offlinePrioritized];
 
       setProfiles(prioritizedProfiles);
 
@@ -1158,13 +1179,16 @@ export default function Home() {
   }, []);
 
   const saveProfile = useCallback(
-    async (patch) => {
+    async (patch, options = {}) => {
       if (!myProfile?.id) return;
+      const closeAfterSave = options?.closeAfterSave !== false;
       try {
         const updated = await db.entities.ChatProfile.update(myProfile.id, patch);
         setMyProfile(updated);
         toast.success(language === "sl" ? "Shranjeno" : "Saved");
-        setView("main");
+        if (closeAfterSave) {
+          setView("main");
+        }
       } catch (error) {
         console.error("Save profile error:", error);
         toast.error(language === "sl" ? "Shranjevanje ni uspelo" : "Save failed");
