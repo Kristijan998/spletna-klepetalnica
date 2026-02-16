@@ -253,7 +253,7 @@ export default function Home() {
   useEffect(() => {
     const isEn = language === "en";
     const manifestHref = isEn ? "/manifest.en.json" : "/manifest.sl.json";
-    const appTitle = isEn ? "Chat" : "Klepetalnica";
+    const appTitle = isEn ? "Web chat" : "Klepetalnica";
     const chromeThemeColor = darkMode ? "#162a4a" : "#f4f7ff";
     const seoTitle = isEn
       ? "Chat | Free chat in English"
@@ -292,7 +292,17 @@ export default function Home() {
     appleTitleMeta.setAttribute("content", appTitle);
 
     document.documentElement.setAttribute("lang", isEn ? "en" : "sl");
-    document.title = seoTitle;
+    document.title = appTitle;
+
+    let faviconLink = document.querySelector('link#app-favicon[rel="icon"]');
+    if (!faviconLink) {
+      faviconLink = document.createElement("link");
+      faviconLink.setAttribute("id", "app-favicon");
+      faviconLink.setAttribute("rel", "icon");
+      faviconLink.setAttribute("type", "image/png");
+      document.head.appendChild(faviconLink);
+    }
+    faviconLink.setAttribute("href", "/icons/icon-192.png");
 
     let descriptionMeta = document.querySelector('meta[name="description"]');
     if (!descriptionMeta) {
