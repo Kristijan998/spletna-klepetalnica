@@ -181,6 +181,18 @@ export default function Home() {
   const lastUnreadByProfileIdRef = useRef({});
   const unreadInitRef = useRef(false);
 
+  const prioritizedProfiles = useMemo(() => {
+    return (profiles || [])
+      .map((profile, idx) => ({ profile, idx }))
+      .sort((a, b) => {
+        const bUnread = unreadByProfileId?.[b.profile?.id] || 0;
+        const aUnread = unreadByProfileId?.[a.profile?.id] || 0;
+        if (aUnread !== bUnread) return bUnread - aUnread;
+        return a.idx - b.idx;
+      })
+      .map((item) => item.profile);
+  }, [profiles, unreadByProfileId]);
+
   const persistLanguage = useCallback(
     (next) => {
       setLanguage(next);
@@ -197,6 +209,7 @@ export default function Home() {
     const isEn = language === "en";
     const manifestHref = isEn ? "/manifest.en.json" : "/manifest.sl.json";
     const appTitle = isEn ? "Chat" : "Klepetalnica";
+    const chromeThemeColor = darkMode ? "#162a4a" : "#f4f7ff";
     const seoTitle = isEn
       ? "Chat | Free chat in English"
       : "Spletna klepetalnica | Brezplačen klepet v slovenščini";
@@ -208,6 +221,22 @@ export default function Home() {
     if (manifestLink) {
       manifestLink.setAttribute("href", manifestHref);
     }
+
+    let themeColorMeta = document.querySelector('meta[name="theme-color"]');
+    if (!themeColorMeta) {
+      themeColorMeta = document.createElement("meta");
+      themeColorMeta.setAttribute("name", "theme-color");
+      document.head.appendChild(themeColorMeta);
+    }
+    themeColorMeta.setAttribute("content", chromeThemeColor);
+
+    let navButtonMeta = document.querySelector('meta[name="msapplication-navbutton-color"]');
+    if (!navButtonMeta) {
+      navButtonMeta = document.createElement("meta");
+      navButtonMeta.setAttribute("name", "msapplication-navbutton-color");
+      document.head.appendChild(navButtonMeta);
+    }
+    navButtonMeta.setAttribute("content", chromeThemeColor);
 
     let appleTitleMeta = document.querySelector('meta[name="apple-mobile-web-app-title"]');
     if (!appleTitleMeta) {
@@ -259,7 +288,7 @@ export default function Home() {
       document.head.appendChild(twitterDescription);
     }
     twitterDescription.setAttribute("content", seoDescription);
-  }, [language]);
+  }, [language, darkMode]);
 
   const loadProfileById = useCallback(async (id) => {
     if (!id) return null;
@@ -1375,7 +1404,7 @@ export default function Home() {
               </div>
             ) : (
               <div className="space-y-3">
-                {profiles.map((p) => (
+                {prioritizedProfiles.map((p) => (
                   <UserCard
                     key={p.id}
                     profile={p}

@@ -231,7 +231,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
     };
 
     checkTypingStatus();
-    const typingInterval = setInterval(checkTypingStatus, 10000);
+    const typingInterval = setInterval(checkTypingStatus, 1500);
 
     return () => {
       clearInterval(interval);
@@ -350,6 +350,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
 
     const content = newMessage.trim();
     setSending(true);
+    setNewMessage("");
 
     const quota = getSendQuota(messages);
     if (quota.remaining <= 0) {
