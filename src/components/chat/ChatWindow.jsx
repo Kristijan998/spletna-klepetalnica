@@ -611,9 +611,17 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-              {partnerName?.[0]?.toUpperCase() || "?"}
-            </div>
+            {partnerProfile?.avatar_url ? (
+              <img
+                src={partnerProfile.avatar_url}
+                alt={partnerName || "Partner"}
+                className="w-9 h-9 rounded-xl object-cover"
+              />
+            ) : (
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                {partnerName?.[0]?.toUpperCase() || "?"}
+              </div>
+            )}
             <div>
               <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"} text-sm`}>{partnerName}</h3>
               <div className="flex items-center gap-1.5 flex-wrap">

@@ -84,17 +84,17 @@ export default function ProfileSettings({ profile, onBack, onSave, language = "s
   };
 
   return (
-    <div className={`${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"} rounded-2xl border p-4 sm:p-5`}>
-      <div className="flex items-center gap-2 mb-4">
+    <div className={`${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"} rounded-3xl border shadow-xl p-6`}>
+      <div className="flex items-center gap-3 mb-6">
         <Button
           variant="ghost"
           size="icon"
           onClick={onBack}
-          className="rounded-lg"
+          className="rounded-xl"
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h2 className={`text-lg font-semibold tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>
+        <h2 className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
           {t("settings.title", language)}
         </h2>
       </div>
@@ -139,26 +139,26 @@ export default function ProfileSettings({ profile, onBack, onSave, language = "s
         </div>
 
         <div className="space-y-2">
-          <Label className={`text-xs font-medium uppercase tracking-wide ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+          <Label className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
             {t("settings.bio", language)}
           </Label>
           <Textarea
             value={form.bio}
             onChange={(e) => setForm({ ...form, bio: e.target.value })}
-            className={`rounded-lg resize-none text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}
+            className={`rounded-xl resize-none ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}
             rows={3}
             maxLength={200}
           />
         </div>
 
         <div className="space-y-2">
-          <Label className={`text-xs font-medium uppercase tracking-wide ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+          <Label className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
             {t("settings.gallery", language)}
           </Label>
           <div className="flex flex-wrap gap-2">
             {form.gallery_images.map((img, i) => (
-              <div key={i} className="relative group w-16 h-16 sm:w-20 sm:h-20">
-                <img src={img} alt={`Galerija ${i + 1}`} className="w-full h-full object-cover rounded-lg" />
+              <div key={i} className="relative group w-12 h-12 sm:w-14 sm:h-14">
+                <img src={img} alt={`Galerija ${i + 1}`} className="w-full h-full object-cover rounded-md" />
                 <button
                   type="button"
                   onClick={() => removeGalleryImage(i)}
@@ -169,11 +169,11 @@ export default function ProfileSettings({ profile, onBack, onSave, language = "s
               </div>
             ))}
             {form.gallery_images.length < 5 && (
-              <label className={`w-16 h-16 sm:w-20 sm:h-20 rounded-lg border border-dashed ${darkMode ? "border-gray-600 bg-gray-900" : "border-gray-300 bg-gray-50"} flex items-center justify-center cursor-pointer hover:border-violet-400 transition-colors`}>
+              <label className={`w-12 h-12 sm:w-14 sm:h-14 rounded-md border border-dashed ${darkMode ? "border-gray-600 bg-gray-900" : "border-gray-300 bg-gray-50"} flex items-center justify-center cursor-pointer hover:border-violet-400 transition-colors`}>
                 {uploading ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-violet-500" />
+                  <Loader2 className="w-4 h-4 animate-spin text-violet-500" />
                 ) : (
-                  <Plus className="w-5 h-5 text-gray-400" />
+                  <Plus className="w-4 h-4 text-gray-400" />
                 )}
                 <input
                   type="file"
@@ -187,26 +187,26 @@ export default function ProfileSettings({ profile, onBack, onSave, language = "s
           </div>
         </div>
 
-        <div className={`p-3 rounded-lg border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+        <div className={`p-4 rounded-xl ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
           <div className="flex items-center justify-between py-1">
-            <span className={`text-xs uppercase tracking-wide ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("settings.name", language)}</span>
-            <span className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{profile.display_name}</span>
+            <span className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("settings.name", language)}</span>
+            <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{profile.display_name}</span>
           </div>
           <div className="flex items-center justify-between py-1">
-            <span className={`text-xs uppercase tracking-wide ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("settings.birthYear", language)}</span>
-            <span className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{profile.birth_year}</span>
+            <span className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("settings.birthYear", language)}</span>
+            <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{profile.birth_year}</span>
           </div>
           <div className="flex items-center justify-between py-1">
-            <span className={`text-xs uppercase tracking-wide ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{language === "sl" ? "Spol" : "Gender"}</span>
-            <span className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{profile.gender}</span>
+            <span className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{language === "sl" ? "Spol" : "Gender"}</span>
+            <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{profile.gender}</span>
           </div>
           <div className="flex items-center justify-between py-1">
-            <span className={`text-xs uppercase tracking-wide ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("register.country", language)}</span>
-            <span className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{profile.country}</span>
+            <span className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("register.country", language)}</span>
+            <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{profile.country}</span>
           </div>
           <div className="flex items-center justify-between py-1">
-            <span className={`text-xs uppercase tracking-wide ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("register.city", language)}</span>
-            <span className={`text-sm ${darkMode ? "text-gray-200" : "text-gray-700"}`}>{profile.city}</span>
+            <span className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("register.city", language)}</span>
+            <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{profile.city}</span>
           </div>
         </div>
 
