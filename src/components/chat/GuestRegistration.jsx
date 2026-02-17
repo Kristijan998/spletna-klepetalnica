@@ -51,6 +51,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
   const [cityData, setCityData] = useState({ en: null, sl: null });
   const nameCheckRequestRef = useRef(0);
   const hasRequestedPreciseLocationRef = useRef(false);
+  const hasRequestedIpLocationRef = useRef(false);
   
   const funnyNamesSl = [
     "MačjiŠef", "KralicaVihrov", "NinjaPečica", "SuperPiškot", "KozorogNaRolki",
@@ -97,10 +98,9 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     window.requestAnimationFrame(scrollToYear2000);
   }, [birthYearOpen]);
 
-  useEffect(() => {
-    let cancelled = false;
-    let timerId = null;
-    let idleHandle = null;
+  const requestIpLocation = useCallback(async () => {
+    if (hasRequestedIpLocationRef.current) return;
+    hasRequestedIpLocationRef.current = true;
 
     const mapCountry = (value) => {
       if (!value) return "";
@@ -135,8 +135,6 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     })();
 
     const applyDetected = ({ countryCode, countryName, city }) => {
-      if (cancelled) return;
-
       if (!hasStoredLanguage && !hasLangParam && onLanguageDetect) {
         onLanguageDetect(countryCode === "SI" ? "sl" : "en");
       }
@@ -150,40 +148,18 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
       }
     };
 
-    const detectByIp = async () => {
-      try {
-        const res = await fetch("/api/ip-location");
-        if (!res.ok) return;
-        const data = await res.json();
-        applyDetected({
-          countryCode: data?.country_code || "",
-          countryName: data?.country || "",
-          city: data?.city || "",
-        });
-      } catch {
-        // ignore detection errors
-      }
-    };
-
-    const startDetection = () => {
-      if (!cancelled) {
-        void detectByIp();
-      }
-    };
-
-    if ("requestIdleCallback" in window) {
-      idleHandle = window.requestIdleCallback(startDetection, { timeout: 2200 });
-    } else {
-      timerId = window.setTimeout(startDetection, 1800);
+    try {
+      const res = await fetch("/api/ip-location");
+      if (!res.ok) return;
+      const data = await res.json();
+      applyDetected({
+        countryCode: data?.country_code || "",
+        countryName: data?.country || "",
+        city: data?.city || "",
+      });
+    } catch {
+      // ignore detection errors
     }
-
-    return () => {
-      cancelled = true;
-      if (timerId) window.clearTimeout(timerId);
-      if (idleHandle && "cancelIdleCallback" in window) {
-        window.cancelIdleCallback(idleHandle);
-      }
-    };
   }, [onLanguageDetect]);
 
   const requestPreciseLocation = useCallback(() => {
@@ -203,11 +179,11 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
 
           const countryMap = {
             "Slovenia": "Slovenija",
-            "Croatia": "HrvaÅ¡ka",
+            "Croatia": "Hrvaška",
             "Serbia": "Srbija",
             "Bosnia and Herzegovina": "Bosna in Hercegovina",
             "Austria": "Avstrija",
-            "Germany": "NemÄija",
+            "Germany": "Nemčija",
             "Italy": "Italija"
           };
           const mappedCountry = countryMap[data?.countryName] || data?.countryName || "";
@@ -392,6 +368,9 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
               placeholder={t("register.namePlaceholder", language)}
               value={form.display_name}
               onChange={(e) => setForm({ ...form, display_name: e.target.value })}
+              onFocus={() => {
+                void requestIpLocation();
+              }}
               className={`h-10 rounded-lg text-sm focus:border-violet-400 focus:ring-violet-400/20 ${darkMode ? "bg-gray-900 border-gray-600 text-white placeholder:text-gray-500" : "border-gray-200 text-gray-900 placeholder:text-gray-400"}`}
               maxLength={15}
             />
@@ -486,7 +465,10 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
                 value={form.country}
                 onValueChange={(v) => setForm({ ...form, country: v, city: "" })}
                 onOpenChange={(open) => {
-                  if (open) requestPreciseLocation();
+                  if (open) {
+                    void requestIpLocation();
+                    requestPreciseLocation();
+                  }
                 }}
               >
                 <SelectTrigger
@@ -515,6 +497,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
                 onValueChange={(v) => setForm({ ...form, city: v })}
                 onOpenChange={(open) => {
                   if (open) {
+                    void requestIpLocation();
                     void loadCityData();
                     requestPreciseLocation();
                   }
