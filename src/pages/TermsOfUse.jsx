@@ -60,6 +60,7 @@ export default function TermsOfUse() {
             variant="ghost"
             size="icon"
             onClick={() => (window.location.href = createPageUrl("Home"))}
+            aria-label={language === "sl" ? "Nazaj domov" : "Back home"}
             className="rounded-xl"
           >
             <ArrowLeft className="w-4 h-4" />

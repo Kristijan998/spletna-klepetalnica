@@ -619,6 +619,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             variant="ghost"
             size="icon"
             onClick={onBack}
+            aria-label={t("Nazaj", "Back")}
             className="rounded-xl h-9 w-9"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -627,6 +628,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             <button
               type="button"
               onClick={openPartnerProfileGallery}
+              aria-label={t("Ogled profila", "View profile")}
               className="relative rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50"
               title={t("Ogled profila", "View profile")}
             >
@@ -678,7 +680,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-xl h-9 w-9">
+            <Button variant="ghost" size="icon" aria-label={t("Več možnosti", "More options")} className="rounded-xl h-9 w-9">
               <MoreVertical className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -801,7 +803,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
       {cameraMode && (
         <div className="absolute inset-0 bg-black z-50 flex flex-col">
           <div className="flex items-center justify-between p-4 bg-black/50">
-            <Button variant="ghost" size="icon" onClick={stopCamera} className="text-white">
+            <Button variant="ghost" size="icon" onClick={stopCamera} aria-label={t("Zapri kamero", "Close camera")} className="text-white">
               <X className="w-5 h-5" />
             </Button>
             <span className="text-white text-sm">{cameraMode === "user" ? "Sprednja kamera" : "Zadnja kamera"}</span>
@@ -813,6 +815,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             <Button
               onClick={capturePhoto}
               size="icon"
+              aria-label={t("Zajemi fotografijo", "Take photo")}
               className="h-16 w-16 rounded-full bg-white hover:bg-gray-200"
             >
               <Camera className="w-6 h-6 text-gray-900" />
@@ -845,6 +848,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
               variant="ghost"
               size="icon"
               className="h-6 w-6"
+              aria-label={t("Odstrani priponko", "Remove attachment")}
               onClick={() => {
                 setAttachedFile(null);
                 setAttachedImage(null);
@@ -883,32 +887,35 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             variant="ghost"
             size="icon"
             onClick={() => fileInputRef.current?.click()}
+            aria-label={t("Dodaj datoteko", "Attach file")}
             className="h-9 w-9 rounded-xl"
           >
             <Paperclip className="w-4 h-4" />
           </Button>
 
           <div className="relative">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => startCamera("environment")}
-              className="h-9 w-9 rounded-xl"
-            >
-              <Camera className="w-4 h-4" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => startCamera("environment")}
+            aria-label={t("Odpri kamero", "Open camera")}
+            className="h-9 w-9 rounded-xl"
+          >
+            <Camera className="w-4 h-4" />
             </Button>
           </div>
 
           <div className="relative">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="h-9 w-9 rounded-xl"
-            >
-              <Smile className="w-4 h-4" />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            aria-label={t("Odpri emoji", "Open emoji picker")}
+            className="h-9 w-9 rounded-xl"
+          >
+            <Smile className="w-4 h-4" />
             </Button>
             {showEmojiPicker && (
               <div className="absolute bottom-12 left-0 z-50">
@@ -930,6 +937,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             type="submit"
             disabled={(!newMessage.trim() && !attachedFile && !attachedImage) || sending}
             size="icon"
+            aria-label={t("Pošlji sporočilo", "Send message")}
             className="h-11 w-11 rounded-xl bg-violet-600 text-white hover:bg-violet-700 focus:ring-2 focus:ring-violet-400"
           >
             <Send className="w-4 h-4" />
@@ -977,6 +985,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
                       key={`${img}-${idx}`}
                       type="button"
                       onClick={() => setSelectedImageIndex(idx)}
+                      aria-label={t(`Prikaži sliko ${idx + 1}`, `Show image ${idx + 1}`)}
                       className={`rounded-lg overflow-hidden border ${
                         idx === selectedImageIndex
                           ? "border-violet-500"

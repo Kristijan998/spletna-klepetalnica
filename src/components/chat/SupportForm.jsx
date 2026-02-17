@@ -69,6 +69,7 @@ export default function SupportForm({ myProfile, onBack, language = "sl" }) {
           variant="ghost"
           size="icon"
           onClick={onBack}
+          aria-label={language === "sl" ? "Nazaj" : "Back"}
           className="rounded-xl"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -87,7 +88,10 @@ export default function SupportForm({ myProfile, onBack, language = "sl" }) {
         <div className="space-y-2">
           <Label className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("support.type", language)}</Label>
           <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-            <SelectTrigger className={`h-11 rounded-xl ${darkMode ? "bg-gray-900 border-gray-600 text-white" : ""}`}>
+            <SelectTrigger
+              aria-label={language === "en" ? "Select support type" : "Izberi tip podpore"}
+              className={`h-11 rounded-xl ${darkMode ? "bg-gray-900 border-gray-600 text-white" : ""}`}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

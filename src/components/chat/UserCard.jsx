@@ -89,6 +89,7 @@ export default function UserCard({
             <button
               type="button"
               onClick={openProfileGallery}
+              aria-label={language === "sl" ? "Ogled profila" : "View profile"}
               className="relative shrink-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50"
               title={language === "sl" ? "Ogled profila" : "View profile"}
             >
@@ -194,6 +195,7 @@ export default function UserCard({
                       key={`${img}-${idx}`}
                       type="button"
                       onClick={() => setSelectedImageIndex(idx)}
+                      aria-label={language === "sl" ? `Prikaži sliko ${idx + 1}` : `Show image ${idx + 1}`}
                       className={`rounded-lg overflow-hidden border ${
                         idx === selectedImageIndex
                           ? "border-violet-500"

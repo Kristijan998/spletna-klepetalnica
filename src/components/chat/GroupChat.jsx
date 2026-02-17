@@ -216,6 +216,7 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
             variant="ghost"
             size="icon"
             onClick={onBack}
+            aria-label={language === "sl" ? "Nazaj" : "Back"}
             className="rounded-xl h-9 w-9"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -344,12 +345,14 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
               <Button
                 onClick={closeCamera}
                 variant="outline"
+                aria-label={language === "sl" ? "Zapri kamero" : "Close camera"}
                 className="rounded-full h-12 w-12 bg-white/20 backdrop-blur border-white/30"
               >
                 <X className="w-5 h-5 text-white" />
               </Button>
               <Button
                 onClick={capturePhoto}
+                aria-label={language === "sl" ? "Zajemi fotografijo" : "Take photo"}
                 className="rounded-full h-14 w-14 bg-white hover:bg-gray-100"
               >
                 <Camera className="w-6 h-6 text-gray-900" />
@@ -381,6 +384,7 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
               variant="ghost"
               size="icon"
               className="h-6 w-6"
+              aria-label={language === "sl" ? "Odstrani priponko" : "Remove attachment"}
               onClick={() => setAttachedImage(null)}
             >
               <X className="w-3 h-3" />
@@ -402,6 +406,7 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
             variant="ghost"
             size="icon"
             onClick={() => fileInputRef.current?.click()}
+            aria-label={language === "sl" ? "Dodaj sliko" : "Attach image"}
             className="h-9 w-9 rounded-xl shrink-0"
           >
             <ImageIcon className="w-4 h-4" />
@@ -412,6 +417,7 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
             variant="ghost"
             size="icon"
             onClick={startCamera}
+            aria-label={language === "sl" ? "Odpri kamero" : "Open camera"}
             className="h-9 w-9 rounded-xl shrink-0"
           >
             <Camera className="w-4 h-4" />
@@ -422,6 +428,7 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
             variant="ghost"
             size="icon"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            aria-label={language === "sl" ? "Odpri emoji" : "Open emoji picker"}
             className="h-9 w-9 rounded-xl shrink-0"
           >
             <Smile className="w-4 h-4" />
@@ -440,6 +447,7 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
             type="submit"
             disabled={(!newMessage.trim() && !attachedImage) || sending}
             size="icon"
+            aria-label={language === "sl" ? "Pošlji sporočilo" : "Send message"}
             className="h-11 w-11 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 shadow-lg shadow-violet-200/50 shrink-0"
           >
             <Send className="w-4 h-4" />

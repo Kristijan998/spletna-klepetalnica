@@ -90,6 +90,7 @@ export default function ProfileSettings({ profile, onBack, onSave, language = "s
           variant="ghost"
           size="icon"
           onClick={onBack}
+          aria-label={language === "sl" ? "Nazaj" : "Back"}
           className="rounded-xl"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -162,6 +163,7 @@ export default function ProfileSettings({ profile, onBack, onSave, language = "s
                 <button
                   type="button"
                   onClick={() => removeGalleryImage(i)}
+                  aria-label={language === "sl" ? `Odstrani sliko ${i + 1}` : `Remove image ${i + 1}`}
                   className="absolute top-1 right-1 bg-black/70 hover:bg-black text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   <X className="w-3 h-3" />

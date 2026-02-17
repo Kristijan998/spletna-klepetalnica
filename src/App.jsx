@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { pagesConfig } from './pages.config'
@@ -7,7 +8,7 @@ import { Analytics } from '@vercel/analytics/react';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
-const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
+const MainPage = mainPageKey ? Pages[mainPageKey] : null;
 
 const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
@@ -37,7 +38,9 @@ function App() {
         <Routes>
           <Route path="/" element={
             <LayoutWrapper currentPageName={mainPageKey}>
-              <MainPage />
+              <Suspense fallback={null}>
+                {MainPage ? <MainPage /> : null}
+              </Suspense>
             </LayoutWrapper>
           } />
           {Object.entries(Pages).map(([path, Page]) => (
@@ -46,7 +49,9 @@ function App() {
               path={`/${path}`}
               element={
                 <LayoutWrapper currentPageName={path}>
-                  <Page />
+                  <Suspense fallback={null}>
+                    <Page />
+                  </Suspense>
                 </LayoutWrapper>
               }
             />

@@ -1,3 +1,4 @@
+import { lazy } from 'react';
 /**
  * pages.config.js - Page routing configuration
  * 
@@ -47,10 +48,10 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import ChatDashboard from './pages/ChatDashboard';
-import Home from './pages/Home';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import TermsOfUse from './pages/TermsOfUse';
+const ChatDashboard = lazy(() => import('./pages/ChatDashboard'));
+const Home = lazy(() => import('./pages/Home'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfUse = lazy(() => import('./pages/TermsOfUse'));
 
 
 export const PAGES = {

@@ -73,6 +73,7 @@ export default function ChatDashboard() {
             variant="ghost"
             size="icon"
             onClick={() => window.location.href = createPageUrl("Home")}
+            aria-label="Nazaj"
             className="rounded-xl"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -82,7 +83,13 @@ export default function ChatDashboard() {
             <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{rooms.length} aktivnih sob</p>
           </div>
           <div className="ml-auto">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-xl">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label={darkMode ? "Vklopi svetli način" : "Vklopi temni način"}
+              className="rounded-xl"
+            >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
           </div>

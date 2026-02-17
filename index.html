@@ -54,22 +54,6 @@
     </script>
   </head>
   <body>
-    <script>
-      (function () {
-        try {
-          var path = window.location.pathname.replace(/\/+$/, "") || "/";
-          var params = new URLSearchParams(window.location.search);
-          if (path === "/" && !params.get("lang")) {
-            var storedLang = "";
-            try { storedLang = (localStorage.getItem("chat_language") || "").toLowerCase(); } catch (e) {}
-            var userLang = (navigator.language || navigator.userLanguage || "").toLowerCase();
-            var sourceLang = storedLang === "sl" || storedLang === "en" ? storedLang : userLang;
-            var target = sourceLang.includes("sl") ? "/?lang=sl" : "/?lang=en";
-            window.location.replace(target);
-          }
-        } catch (e) {}
-      })();
-    </script>
     <noscript>
       <h1>Chattko spletna klepetalnica in web chat</h1>
       <p>

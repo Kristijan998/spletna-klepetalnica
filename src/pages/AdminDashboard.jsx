@@ -408,7 +408,7 @@ export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
         <div className="flex items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
             {typeof onExit === "function" && (
-              <Button variant="ghost" size="icon" onClick={onExit} className="rounded-xl">
+              <Button variant="ghost" size="icon" onClick={onExit} aria-label="Nazaj" className="rounded-xl">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             )}
@@ -424,7 +424,13 @@ export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={toggleTheme} className={`rounded-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleTheme}
+              aria-label={darkMode ? "Vklopi svetli način" : "Vklopi temni način"}
+              className={`rounded-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+            >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </Button>
             <Button onClick={onLogout} variant="ghost" className={`rounded-xl gap-2 ${darkMode ? "text-gray-300 hover:text-red-300" : "text-gray-600 hover:text-red-600"}`}>

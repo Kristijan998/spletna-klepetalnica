@@ -18,12 +18,6 @@ import {
 import LanguageSelector from "@/components/LanguageSelector";
 import GuestRegistration from "@/components/chat/GuestRegistration";
 import UserCard from "@/components/chat/UserCard";
-import ChatWindow from "@/components/chat/ChatWindow";
-import GroupList from "@/components/chat/GroupList";
-import GroupChat from "@/components/chat/GroupChat";
-import ChatHistory from "@/components/chat/ChatHistory";
-import ProfileSettings from "@/components/chat/ProfileSettings";
-import SupportForm from "@/components/chat/SupportForm";
 import InactivityMonitor from "@/components/chat/InactivityMonitor";
 
 import { t } from "@/components/utils/translations";
@@ -34,6 +28,24 @@ const STORAGE_AUTH_PROFILE_ID = "auth_profile_id";
 const STORAGE_ADMIN_PROFILE_ID = "admin_profile_id";
 const STORAGE_GUEST_RESTORE = "guest_restore_v1";
 const STORAGE_LANGUAGE = "chat_language";
+
+function getInitialLanguage() {
+  if (typeof window === "undefined") return "sl";
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const langParam = (params.get("lang") || "").toLowerCase();
+    if (langParam === "sl" || langParam === "en") return langParam;
+
+    const stored = (localStorage.getItem(STORAGE_LANGUAGE) || "").toLowerCase();
+    if (stored === "sl" || stored === "en") return stored;
+
+    const browserLanguage = (navigator.language || navigator.userLanguage || "").toLowerCase();
+    return browserLanguage.includes("sl") ? "sl" : "en";
+  } catch {
+    return "sl";
+  }
+}
 
 // How long a user is considered online without heartbeat updates.
 // Keep reasonably short; we use 60s so users remain visible as "recently active" for one minute.
@@ -148,6 +160,12 @@ function normalizeName(value) {
 }
 
 const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
+const ChatWindow = lazy(() => import("@/components/chat/ChatWindow"));
+const GroupList = lazy(() => import("@/components/chat/GroupList"));
+const GroupChat = lazy(() => import("@/components/chat/GroupChat"));
+const ChatHistory = lazy(() => import("@/components/chat/ChatHistory"));
+const ProfileSettings = lazy(() => import("@/components/chat/ProfileSettings"));
+const SupportForm = lazy(() => import("@/components/chat/SupportForm"));
 
 async function fetchIpLocation() {
   // Prefer same-origin API on Vercel (more reliable than direct browser call to third-party service).
@@ -196,7 +214,7 @@ export default function Home() {
   // localStorage is shared across tabs and would overwrite auth in other tab.
   const guestStorage = typeof window !== "undefined" ? window.sessionStorage : null;
 
-  const [language, setLanguage] = useState(() => localStorage.getItem(STORAGE_LANGUAGE) || "sl");
+  const [language, setLanguage] = useState(getInitialLanguage);
   const [activeTab, setActiveTab] = useState("users");
 
   const [myProfile, setMyProfile] = useState(null);
@@ -1143,28 +1161,30 @@ export default function Home() {
           } catch (e) { console.error('BroadcastChannel send error:', e); }
         }
 
-        try {
-          if (db?.entities?.LoginEvent?.create) {
-            const ipLocation = await fetchIpLocation();
-            const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
-            await db.entities.LoginEvent.create({
-              profile_id: sessionProfile.id,
-              display_name: sessionProfile.display_name,
-              type: "guest",
-              auth_provider: "guest",
-              ip: ipLocation?.ip || null,
-              user_agent: JSON.stringify({
-                ua: userAgent,
-                country: ipLocation?.country || null,
-                city: ipLocation?.city || null,
-                region: ipLocation?.region || null,
-                location_source: ipLocation?.source || null,
-              }),
-              created_date: new Date().toISOString(),
-            });
-          }
-        } catch {
-          // ignore
+        if (db?.entities?.LoginEvent?.create) {
+          void (async () => {
+            try {
+              const ipLocation = await fetchIpLocation();
+              const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
+              await db.entities.LoginEvent.create({
+                profile_id: sessionProfile.id,
+                display_name: sessionProfile.display_name,
+                type: "guest",
+                auth_provider: "guest",
+                ip: ipLocation?.ip || null,
+                user_agent: JSON.stringify({
+                  ua: userAgent,
+                  country: ipLocation?.country || null,
+                  city: ipLocation?.city || null,
+                  region: ipLocation?.region || null,
+                  location_source: ipLocation?.source || null,
+                }),
+                created_date: new Date().toISOString(),
+              });
+            } catch {
+              // ignore
+            }
+          })();
         }
       } catch (error) {
         console.error("Register error:", error);
@@ -1334,6 +1354,15 @@ export default function Home() {
               toggleTheme();
               setTimeout(() => setProfiles([...profiles]), 0);
             }}
+            aria-label={
+              darkMode
+                ? language === "sl"
+                  ? "Vklopi svetli način"
+                  : "Switch to light mode"
+                : language === "sl"
+                  ? "Vklopi temni način"
+                  : "Switch to dark mode"
+            }
             className="rounded-xl h-9 w-9"
             title={
               darkMode
@@ -1353,6 +1382,7 @@ export default function Home() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setView("support")}
+                aria-label={t("support.title", language)}
                 className="rounded-xl h-9 w-9"
                 title={t("support.title", language)}
               >
@@ -1362,6 +1392,7 @@ export default function Home() {
                 variant="ghost"
                 size="icon"
                 onClick={() => setView("settings")}
+                aria-label={t("settings.title", language)}
                 className="rounded-xl h-9 w-9"
                 title={t("settings.title", language)}
               >
@@ -1502,6 +1533,7 @@ export default function Home() {
                 variant="ghost"
                 size="icon"
                 onClick={toggleTheme}
+                aria-label={darkMode ? (language === "sl" ? "Vklopi svetli način" : "Switch to light mode") : (language === "sl" ? "Vklopi temni način" : "Switch to dark mode")}
                 className={`rounded-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                 title={darkMode ? (language === "sl" ? "Svetli način" : "Light mode") : (language === "sl" ? "Temni način" : "Dark mode")}
               >
@@ -1552,7 +1584,9 @@ export default function Home() {
       >
         <div className="max-w-3xl mx-auto">
           {mainHeader}
-          <ProfileSettings profile={myProfile} onBack={() => setView("main")} onSave={saveProfile} language={language} />
+          <Suspense fallback={null}>
+            <ProfileSettings profile={myProfile} onBack={() => setView("main")} onSave={saveProfile} language={language} />
+          </Suspense>
         </div>
       </div>
     );
@@ -1569,7 +1603,9 @@ export default function Home() {
       >
         <div className="max-w-3xl mx-auto">
           {mainHeader}
-          <SupportForm myProfile={myProfile} onBack={() => setView("main")} language={language} />
+          <Suspense fallback={null}>
+            <SupportForm myProfile={myProfile} onBack={() => setView("main")} language={language} />
+          </Suspense>
         </div>
       </div>
     );
@@ -1589,22 +1625,24 @@ export default function Home() {
       >
         <div className="max-w-5xl mx-auto">
           {mainHeader}
-          <ChatWindow
-            room={selectedRoom}
-            myProfileId={myProfile.id}
-            myName={myProfile.display_name}
-            partnerName={partnerName}
-            language={language}
-            onBack={() => setSelectedRoom(null)}
-            onPartnerOffline={() => {}}
-            onUserBlocked={(blockedId) => {
-              setMyProfile((prev) =>
-                prev ? { ...prev, blocked_users: [...(prev.blocked_users || []), blockedId] } : prev
-              );
-              setProfiles((prev) => (prev || []).filter((p) => p?.id !== blockedId));
-              setSelectedRoom(null);
-            }}
-          />
+          <Suspense fallback={null}>
+            <ChatWindow
+              room={selectedRoom}
+              myProfileId={myProfile.id}
+              myName={myProfile.display_name}
+              partnerName={partnerName}
+              language={language}
+              onBack={() => setSelectedRoom(null)}
+              onPartnerOffline={() => {}}
+              onUserBlocked={(blockedId) => {
+                setMyProfile((prev) =>
+                  prev ? { ...prev, blocked_users: [...(prev.blocked_users || []), blockedId] } : prev
+                );
+                setProfiles((prev) => (prev || []).filter((p) => p?.id !== blockedId));
+                setSelectedRoom(null);
+              }}
+            />
+          </Suspense>
         </div>
         <InactivityMonitor isActive={Boolean(myProfile?.id)} onLogout={logoutGuest} onStayActive={() => markProfileOnline(myProfile.id)} />
       </div>
@@ -1623,13 +1661,15 @@ export default function Home() {
         <div className="max-w-5xl mx-auto">
           {mainHeader}
           <div className="h-[calc(100vh-170px)]">
-            <GroupChat
-              group={selectedGroup}
-              myProfileId={myProfile.id}
-              myName={myProfile.display_name}
-              onBack={() => setSelectedGroup(null)}
-              language={language}
-            />
+            <Suspense fallback={null}>
+              <GroupChat
+                group={selectedGroup}
+                myProfileId={myProfile.id}
+                myName={myProfile.display_name}
+                onBack={() => setSelectedGroup(null)}
+                language={language}
+              />
+            </Suspense>
           </div>
         </div>
         <InactivityMonitor isActive={Boolean(myProfile?.id)} onLogout={logoutGuest} onStayActive={() => markProfileOnline(myProfile.id)} />
@@ -1696,21 +1736,25 @@ export default function Home() {
           </TabsContent>
 
           <TabsContent value="groups">
-            <GroupList
-              groups={groups}
-              myProfile={myProfile}
-              onlineUsers={(profiles || []).filter(isProfileOnline)}
-              unreadByGroupId={unreadByGroupId}
-              onCreateGroup={onCreateGroup}
-              onJoinGroup={onJoinGroup}
-              onOpenGroup={onOpenGroup}
-              onDeleteGroup={onDeleteGroup}
-              language={language}
-            />
+            <Suspense fallback={null}>
+              <GroupList
+                groups={groups}
+                myProfile={myProfile}
+                onlineUsers={(profiles || []).filter(isProfileOnline)}
+                unreadByGroupId={unreadByGroupId}
+                onCreateGroup={onCreateGroup}
+                onJoinGroup={onJoinGroup}
+                onOpenGroup={onOpenGroup}
+                onDeleteGroup={onDeleteGroup}
+                language={language}
+              />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="history">
-            <ChatHistory rooms={rooms} myProfileId={myProfile.id} onOpenRoom={onOpenRoomFromHistory} language={language} />
+            <Suspense fallback={null}>
+              <ChatHistory rooms={rooms} myProfileId={myProfile.id} onOpenRoom={onOpenRoomFromHistory} language={language} />
+            </Suspense>
           </TabsContent>
         </Tabs>
       </div>

@@ -165,80 +165,125 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
   }, [birthYearOpen]);
 
   useEffect(() => {
-    
-    // GPS location detection
-    if (navigator.geolocation) {
+    let cancelled = false;
+    let timerId = null;
+    let idleHandle = null;
+
+    const mapCountry = (value) => {
+      if (!value) return "";
+      const countryMap = {
+        "Slovenia": "Slovenija",
+        "Croatia": "Hrvaška",
+        "Serbia": "Srbija",
+        "Bosnia and Herzegovina": "Bosna in Hercegovina",
+        "Austria": "Avstrija",
+        "Germany": "Nemčija",
+        "Italy": "Italija"
+      };
+      return countryMap[value] || value;
+    };
+
+    const hasStoredLanguage = (() => {
+      try {
+        const stored = localStorage.getItem("chat_language");
+        return stored === "sl" || stored === "en";
+      } catch {
+        return false;
+      }
+    })();
+
+    const hasLangParam = (() => {
+      try {
+        const lang = new URLSearchParams(window.location.search).get("lang");
+        return lang === "sl" || lang === "en";
+      } catch {
+        return false;
+      }
+    })();
+
+    const applyDetected = ({ countryCode, countryName, city }) => {
+      if (cancelled) return;
+
+      if (!hasStoredLanguage && !hasLangParam && onLanguageDetect) {
+        onLanguageDetect(countryCode === "SI" ? "sl" : "en");
+      }
+
+      const mappedCountry = mapCountry(countryName);
+      if (mappedCountry && COUNTRIES.includes(mappedCountry)) {
+        setForm((prev) => (prev.country ? prev : { ...prev, country: mappedCountry }));
+      }
+      if (city) {
+        setForm((prev) => (prev.city ? prev : { ...prev, city }));
+      }
+    };
+
+    const detectByIp = async () => {
+      try {
+        const res = await fetch("/api/ip-location");
+        if (!res.ok) return;
+        const data = await res.json();
+        applyDetected({
+          countryCode: data?.country_code || "",
+          countryName: data?.country || "",
+          city: data?.city || "",
+        });
+      } catch {
+        // ignore detection errors
+      }
+    };
+
+    const detectLocation = () => {
+      if (!navigator.geolocation) {
+        detectByIp();
+        return;
+      }
+
       navigator.geolocation.getCurrentPosition(
         async (position) => {
+          if (cancelled) return;
           const { latitude, longitude } = position.coords;
           try {
-            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=sl`);
+            const res = await fetch(
+              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=sl`
+            );
+            if (!res.ok) {
+              detectByIp();
+              return;
+            }
             const data = await res.json();
-            
-            // Auto-detect language based on country
-            if (data.countryCode === "SI" && onLanguageDetect) {
-              onLanguageDetect("sl");
-            } else if (onLanguageDetect) {
-              onLanguageDetect("en");
-            }
-            
-            if (data.countryName) {
-              const countryMap = {
-                "Slovenia": "Slovenija",
-                "Croatia": "Hrvaška",
-                "Serbia": "Srbija",
-                "Bosnia and Herzegovina": "Bosna in Hercegovina",
-                "Austria": "Avstrija",
-                "Germany": "Nemčija",
-                "Italy": "Italija"
-              };
-              const country = countryMap[data.countryName] || data.countryName;
-              if (COUNTRIES.includes(country)) {
-                setForm(f => ({ ...f, country }));
-              }
-            }
-            if (data.city || data.locality) {
-              setForm(f => ({ ...f, city: data.city || data.locality }));
-            }
-          } catch (error) {
-            console.error("Error fetching location:", error);
+            applyDetected({
+              countryCode: data?.countryCode || "",
+              countryName: data?.countryName || "",
+              city: data?.city || data?.locality || "",
+            });
+          } catch {
+            detectByIp();
           }
         },
         () => {
-          // Fallback to IP-based detection
-          fetch("https://ipapi.co/json/")
-            .then(res => res.json())
-            .then(data => {
-              // Auto-detect language based on country
-              if (data.country_code === "SI" && onLanguageDetect) {
-                onLanguageDetect("sl");
-              } else if (onLanguageDetect) {
-                onLanguageDetect("en");
-              }
-              
-              if (data.country_name) {
-                const countryMap = {
-                  "Slovenia": "Slovenija",
-                  "Croatia": "Hrvaška",
-                  "Serbia": "Srbija",
-                  "Bosnia and Herzegovina": "Bosna in Hercegovina",
-                  "Austria": "Avstrija",
-                  "Germany": "Nemčija",
-                  "Italy": "Italija"
-                };
-                const country = countryMap[data.country_name] || data.country_name;
-                if (COUNTRIES.includes(country)) {
-                  setForm(f => ({ ...f, country }));
-                }
-              }
-              if (data.city) {
-                setForm(f => ({ ...f, city: data.city }));
-              }
-            })
-            .catch(() => {});
-        }
+          detectByIp();
+        },
+        { timeout: 2500, maximumAge: 60000 }
       );
+    };
+
+    const startDetection = () => {
+      if (!cancelled) detectLocation();
+    };
+
+    if ("requestIdleCallback" in window) {
+      idleHandle = window.requestIdleCallback(startDetection, { timeout: 1200 });
+    } else {
+      timerId = window.setTimeout(startDetection, 800);
     }
+
+    return () => {
+      cancelled = true;
+      if (timerId) window.clearTimeout(timerId);
+      if (idleHandle && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleHandle);
+      }
+    };
   }, [onLanguageDetect]);
 
   useEffect(() => {
@@ -430,7 +475,10 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
                 onValueChange={(v) => setForm({ ...form, birth_year: v })}
                 onOpenChange={setBirthYearOpen}
               >
-                <SelectTrigger className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}>
+                <SelectTrigger
+                  aria-label={language === "en" ? "Select birth year" : "Izberi leto rojstva"}
+                  className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}
+                >
                   <SelectValue placeholder={t("register.selectYear", language)} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
@@ -450,7 +498,10 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
             <div className="space-y-1.5">
               <Label className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("register.gender", language)}</Label>
               <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
-                <SelectTrigger className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}>
+                <SelectTrigger
+                  aria-label={language === "en" ? "Select gender" : "Izberi spol"}
+                  className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}
+                >
                   <SelectValue placeholder={t("register.selectYear", language)} />
                 </SelectTrigger>
                 <SelectContent>
@@ -466,14 +517,17 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
             <div className="space-y-1.5">
               <Label className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("register.country", language)}</Label>
               <Select value={form.country} onValueChange={(v) => setForm({ ...form, country: v, city: "" })}>
-                <SelectTrigger className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}>
+                <SelectTrigger
+                  aria-label={language === "en" ? "Select country" : "Izberi državo"}
+                  className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}
+                >
                   <SelectValue placeholder={t("register.countryPlaceholder", language)} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {COUNTRIES.map(country => (
                     <SelectItem key={country} value={country} className="flex items-center gap-2">
                       <div className="flex items-center gap-2">
-                        <img src={COUNTRY_FLAGS[country]} alt={country} className="w-6 h-4 object-cover" />
+                        <img src={COUNTRY_FLAGS[country]} alt={country} width="24" height="16" className="w-6 h-4 object-cover" />
                         {getCountryDisplayName(country)}
                       </div>
                     </SelectItem>
@@ -485,7 +539,10 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
             <div className="space-y-1.5">
               <Label className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("register.city", language)}</Label>
               <Select value={form.city} onValueChange={(v) => setForm({ ...form, city: v })}>
-                <SelectTrigger className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}>
+                <SelectTrigger
+                  aria-label={language === "en" ? "Select city" : "Izberi mesto"}
+                  className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}
+                >
                   <SelectValue placeholder={t("register.cityPlaceholder", language)} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
@@ -532,3 +589,4 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     </motion.div>
   );
 }
+

@@ -1,5 +1,5 @@
 import React from "react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Languages } from "lucide-react";
 
 export default function LanguageSelector({ language, onChange, darkMode }) {
@@ -13,11 +13,16 @@ export default function LanguageSelector({ language, onChange, darkMode }) {
     <div className="flex items-center gap-2">
       <Languages className={`w-4 h-4 ${darkMode ? "text-gray-300" : "text-gray-500"}`} />
       <Select value={language} onValueChange={onChange}>
-        <SelectTrigger className={`min-w-[110px] sm:min-w-[160px] h-9 rounded-xl ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-200 text-gray-900"}`}>
+        <SelectTrigger
+          aria-label={language === "en" ? "Language selector" : "Izbira jezika"}
+          className={`min-w-[110px] sm:min-w-[160px] h-9 rounded-xl ${darkMode ? "bg-gray-800 border-gray-600 text-white" : "bg-white border-gray-200 text-gray-900"}`}
+        >
           <span className={darkMode ? "text-white" : "text-gray-900"}>
             <img
               src={current.flag}
               alt={current.full}
+              width="16"
+              height="12"
               className={`inline-block w-4 h-3 align-middle mr-1.5 ring-1 ${darkMode ? "ring-gray-600" : "ring-gray-200"} object-cover`}
             />
             <span className="sm:hidden">{current.short}</span><span className="hidden sm:inline">{current.full}</span>
@@ -28,6 +33,8 @@ export default function LanguageSelector({ language, onChange, darkMode }) {
             <img
               src={labels.sl.flag}
               alt={labels.sl.full}
+              width="16"
+              height="12"
               className={`inline-block w-4 h-3 align-middle mr-1.5 ring-1 ${darkMode ? "ring-gray-600" : "ring-gray-200"} object-cover`}
             />
             <span className="sm:hidden">SLO</span><span className="hidden sm:inline">Slovenščina</span>
@@ -36,6 +43,8 @@ export default function LanguageSelector({ language, onChange, darkMode }) {
             <img
               src={labels.en.flag}
               alt={labels.en.full}
+              width="16"
+              height="12"
               className={`inline-block w-4 h-3 align-middle mr-1.5 ring-1 ${darkMode ? "ring-gray-600" : "ring-gray-200"} object-cover`}
             />
             <span className="sm:hidden">ENG</span><span className="hidden sm:inline">English</span>
