@@ -4,7 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { motion } from "framer-motion";
 import { MessageCircle, Sparkles, Check } from "lucide-react";
 import { t } from "@/components/utils/translations";
 
@@ -367,12 +366,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full max-w-md mx-auto"
-    >
+    <div className="w-full max-w-md mx-auto">
       <div className="text-center mb-6">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 mb-3">
           <MessageCircle className="w-6 h-6 text-white" />
@@ -559,7 +553,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
 
 
       </div>
-    </motion.div>
+    </div>
   );
 }
 

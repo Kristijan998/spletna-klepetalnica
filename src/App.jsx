@@ -1,10 +1,7 @@
-import { Suspense } from 'react'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { queryClientInstance } from '@/lib/query-client'
+import { Suspense, useEffect, useState } from 'react'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { Analytics } from '@vercel/analytics/react';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -31,9 +28,45 @@ const PageNotFound = () => (
 
 
 function App() {
+  const [AnalyticsComponent, setAnalyticsComponent] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let timerId = null;
+    let idleHandle = null;
+
+    const loadAnalytics = async () => {
+      try {
+        const mod = await import("@vercel/analytics/react");
+        if (!cancelled) {
+          setAnalyticsComponent(() => mod.Analytics);
+        }
+      } catch {
+        // ignore analytics loading failures
+      }
+    };
+
+    if ("requestIdleCallback" in window) {
+      idleHandle = window.requestIdleCallback(() => {
+        void loadAnalytics();
+      }, { timeout: 5000 });
+    } else {
+      timerId = window.setTimeout(() => {
+        void loadAnalytics();
+      }, 2200);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timerId) window.clearTimeout(timerId);
+      if (idleHandle && "cancelIdleCallback" in window) {
+        window.cancelIdleCallback(idleHandle);
+      }
+    };
+  }, []);
 
   return (
-    <QueryClientProvider client={queryClientInstance}>
+    <>
       <Router basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={
@@ -60,8 +93,8 @@ function App() {
         </Routes>
       </Router>
       <Toaster richColors position="top-right" />
-      <Analytics />
-    </QueryClientProvider>
+      {AnalyticsComponent ? <AnalyticsComponent /> : null}
+    </>
   )
 }
 
