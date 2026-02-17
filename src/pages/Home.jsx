@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db } from "@/api/db";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,7 +25,7 @@ import ChatHistory from "@/components/chat/ChatHistory";
 import ProfileSettings from "@/components/chat/ProfileSettings";
 import SupportForm from "@/components/chat/SupportForm";
 import InactivityMonitor from "@/components/chat/InactivityMonitor";
-import AdminDashboard from "@/pages/AdminDashboard";
+
 import { t } from "@/components/utils/translations";
 import { useTheme } from "@/hooks/use-theme";
 import { createPageUrl } from "@/utils";
@@ -62,8 +62,8 @@ function randomAvatarColor() {
 
 function getGenderAvatarColor(gender) {
   const normalized = String(gender || "").trim().toLocaleLowerCase("sl");
-  if (normalized === "moÅ¡ki" || normalized === "moski") return "#3b82f6";
-  if (normalized === "Å¾enska" || normalized === "zenska") return "#ec4899";
+  if (normalized === "moški" || normalized === "moski") return "#3b82f6";
+  if (normalized === "ženska" || normalized === "zenska") return "#ec4899";
   return randomAvatarColor();
 }
 
@@ -146,6 +146,8 @@ function getCountryGroupKey(profileCountry, myCountry) {
 function normalizeName(value) {
   return String(value || "").trim().toLocaleLowerCase("sl");
 }
+
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 
 async function fetchIpLocation() {
   // Prefer same-origin API on Vercel (more reliable than direct browser call to third-party service).
@@ -1016,8 +1018,8 @@ export default function Home() {
   useEffect(() => {
     loadData();
     if (!myProfile?.id || view !== "main") return;
-    // Refresh every 1 second for fastest updates
-    const interval = setInterval(loadData, 1000);
+    // Mobile-friendly refresh cadence with lower CPU/battery impact.
+    const interval = setInterval(loadData, 2000);
     return () => clearInterval(interval);
   }, [loadData, myProfile?.id, view]);
 
@@ -1253,7 +1255,7 @@ export default function Home() {
         setSelectedGroup({ ...group, member_ids: [...(group.member_ids || []), myProfile.id], member_count: (group.member_count || memberIds.length) + 1 });
       } catch (error) {
         console.error("Join group error:", error);
-        toast.error(language === "sl" ? "PridruÅ¾itev ni uspela" : "Failed to join");
+        toast.error(language === "sl" ? "Pridružitev ni uspela" : "Failed to join");
       }
     },
     [language, loadData, myProfile?.id]
@@ -1336,10 +1338,10 @@ export default function Home() {
             title={
               darkMode
                 ? language === "sl"
-                  ? "Svetli naÄin"
+                  ? "Svetli način"
                   : "Light mode"
                 : language === "sl"
-                  ? "Temni naÄin"
+                  ? "Temni način"
                   : "Dark mode"
             }
           >
@@ -1470,7 +1472,17 @@ export default function Home() {
   }
 
   if (view === "admin" && adminProfile) {
-    return <AdminDashboard adminProfile={adminProfile} onLogout={logoutAdmin} onExit={() => setView("main")} />;
+    return (
+      <Suspense
+        fallback={
+          <div className={`min-h-screen flex items-center justify-center ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
+            <div className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{t("register.loading", language)}</div>
+          </div>
+        }
+      >
+        <AdminDashboard adminProfile={adminProfile} onLogout={logoutAdmin} onExit={() => setView("main")} />
+      </Suspense>
+    );
   }
 
   if (!myProfile) {
@@ -1491,7 +1503,7 @@ export default function Home() {
                 size="icon"
                 onClick={toggleTheme}
                 className={`rounded-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                title={darkMode ? (language === "sl" ? "Svetli naÄin" : "Light mode") : (language === "sl" ? "Temni naÄin" : "Dark mode")}
+                title={darkMode ? (language === "sl" ? "Svetli način" : "Light mode") : (language === "sl" ? "Temni način" : "Dark mode")}
               >
                 {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </Button>
@@ -1707,5 +1719,8 @@ export default function Home() {
     </div>
   );
 }
+
+
+
 
 
