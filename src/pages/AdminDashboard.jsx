@@ -38,6 +38,16 @@ function normalizeGender(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function parseLoginMeta(userAgentValue) {
+  try {
+    const parsed = JSON.parse(userAgentValue || "{}");
+    if (parsed && typeof parsed === "object") return parsed;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
 export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
   const { isDark, toggleTheme } = useTheme();
   const darkMode = isDark;
@@ -791,10 +801,15 @@ export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
                   ) : (
                     loginEvents.map((ev) => (
                       <div key={ev.id} className={`p-4 rounded-xl border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
+                        {(() => {
+                          const meta = parseLoginMeta(ev.user_agent);
+                          const location = [meta.city, meta.region, meta.country].filter(Boolean).join(", ");
+                          const displayName = ev.display_name || ev.profile_name || "(brez imena)";
+                          return (
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-900"}`}>
-                              {ev.display_name || "(brez imena)"}
+                              {displayName}
                             </div>
                             <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                               {ev.auth_provider ? `provider: ${ev.auth_provider}` : ""}
@@ -803,11 +818,16 @@ export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
                             <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                               IP: {ev.ip || "unknown"}
                             </div>
+                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                              Lokacija: {location || "unknown"}
+                            </div>
                           </div>
                           <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                             {ev.created_date ? new Date(ev.created_date).toLocaleString("sl-SI", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : ""}
                           </div>
                         </div>
+                          );
+                        })()}
                       </div>
                     ))
                   )}

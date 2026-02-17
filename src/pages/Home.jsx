@@ -147,6 +147,25 @@ function normalizeName(value) {
   return String(value || "").trim().toLocaleLowerCase("sl");
 }
 
+async function fetchIpLocation() {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch("https://ipapi.co/json/", { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      ip: data?.ip || null,
+      country: data?.country_name || data?.country || null,
+      city: data?.city || null,
+      region: data?.region || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function Home() {
   const { isDark, toggleTheme } = useTheme();
   const darkMode = isDark;
@@ -1078,10 +1097,20 @@ export default function Home() {
 
         try {
           if (db?.entities?.LoginEvent?.create) {
+            const ipLocation = await fetchIpLocation();
+            const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
             await db.entities.LoginEvent.create({
               profile_id: created.id,
-              profile_name: created.display_name,
+              display_name: created.display_name,
               type: "guest",
+              auth_provider: "guest",
+              ip: ipLocation?.ip || null,
+              user_agent: JSON.stringify({
+                ua: userAgent,
+                country: ipLocation?.country || null,
+                city: ipLocation?.city || null,
+                region: ipLocation?.region || null,
+              }),
               created_date: new Date().toISOString(),
             });
           }
