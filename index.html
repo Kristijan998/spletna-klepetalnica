@@ -53,7 +53,7 @@
             try { storedLang = (localStorage.getItem("chat_language") || "").toLowerCase(); } catch (e) {}
             var userLang = (navigator.language || navigator.userLanguage || "").toLowerCase();
             var sourceLang = storedLang === "sl" || storedLang === "en" ? storedLang : userLang;
-            var target = sourceLang.includes("sl") ? "/sl/" : "/en/";
+            var target = sourceLang.includes("sl") ? "/?lang=sl" : "/?lang=en";
             window.location.replace(target);
           }
         } catch (e) {}
@@ -63,6 +63,7 @@
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+
 
 
 
