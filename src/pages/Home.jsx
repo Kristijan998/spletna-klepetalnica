@@ -1030,53 +1030,80 @@ export default function Home() {
         const trimmedName = String(data?.display_name || "").trim();
         if (!trimmedName) throw new Error(language === "sl" ? "Ime manjka" : "Name is required");
 
-        const isTaken = await onCheckName(trimmedName);
-        if (isTaken) {
-          toast.error(t("register.nameTaken", language));
-          return;
-        }
-
         const normalizedCity = String(data?.city || "").trim().toLowerCase();
         const isAdminRegistration =
           trimmedName === "Telebajsek1999@" &&
           Number(data?.birth_year) === 1999 &&
           normalizedCity === "mozirje";
 
-        const created = await db.entities.ChatProfile.create({
-          display_name: trimmedName,
-          birth_year: data?.birth_year || "",
-          gender: data?.gender || "",
-          country: data?.country || "",
-          city: data?.city || "",
-          bio: data?.bio || "",
-          avatar_color: getGenderAvatarColor(data?.gender),
-          avatar_url: "",
-          gallery_images: [],
-          is_online: true,
-          last_activity: new Date().toISOString(),
-          is_typing: false,
-          blocked_users: [],
-          is_admin: isAdminRegistration,
-          is_banned: false,
-        });
+        if (!isAdminRegistration) {
+          const isTaken = await onCheckName(trimmedName);
+          if (isTaken) {
+            toast.error(t("register.nameTaken", language));
+            return;
+          }
+        }
 
-        setMyProfile(created);
+        let sessionProfile = null;
+        let profileAction = "update";
+
         if (isAdminRegistration) {
-          setAdminProfile(created);
+          const existingByName = await db.entities.ChatProfile.filter({ display_name: trimmedName }, "-last_activity", 50);
+          const existingAdmin = (existingByName || []).find(
+            (p) =>
+              p?.is_admin === true &&
+              Number(p?.birth_year) === 1999 &&
+              String(p?.city || "").trim().toLowerCase() === "mozirje"
+          );
+
+          if (existingAdmin) {
+            sessionProfile = await db.entities.ChatProfile.update(existingAdmin.id, {
+              is_online: true,
+              is_typing: false,
+              last_activity: new Date().toISOString(),
+              logout_block_until: null,
+            });
+          }
+        }
+
+        if (!sessionProfile) {
+          sessionProfile = await db.entities.ChatProfile.create({
+            display_name: trimmedName,
+            birth_year: data?.birth_year || "",
+            gender: data?.gender || "",
+            country: data?.country || "",
+            city: data?.city || "",
+            bio: data?.bio || "",
+            avatar_color: getGenderAvatarColor(data?.gender),
+            avatar_url: "",
+            gallery_images: [],
+            is_online: true,
+            last_activity: new Date().toISOString(),
+            is_typing: false,
+            blocked_users: [],
+            is_admin: isAdminRegistration,
+            is_banned: false,
+          });
+          profileAction = "create";
+        }
+
+        setMyProfile(sessionProfile);
+        if (isAdminRegistration) {
+          setAdminProfile(sessionProfile);
           setView("admin");
         }
-        safeStorageSet(guestStorage, STORAGE_AUTH_PROFILE_ID, created.id);
-        safeStorageSet(guestStorage, STORAGE_GUEST_RESTORE, JSON.stringify({ profile_id: created.id, at: Date.now() }));
+        safeStorageSet(guestStorage, STORAGE_AUTH_PROFILE_ID, sessionProfile.id);
+        safeStorageSet(guestStorage, STORAGE_GUEST_RESTORE, JSON.stringify({ profile_id: sessionProfile.id, at: Date.now() }));
         if (isAdminRegistration) {
           try {
-            localStorage.setItem(STORAGE_ADMIN_PROFILE_ID, created.id);
+            localStorage.setItem(STORAGE_ADMIN_PROFILE_ID, sessionProfile.id);
           } catch {
             // ignore
           }
         }
 
         // Ensure profile is marked online immediately after registration
-        await markProfileOnline(created.id);
+        await markProfileOnline(sessionProfile.id);
         
         // Force immediate data load in this tab
         setTimeout(() => {
@@ -1089,8 +1116,7 @@ export default function Home() {
         if (typeof BroadcastChannel !== 'undefined') {
           try {
             const channel = new BroadcastChannel('local_db_updates');
-            console.log('\u2B07\uFE0F Sending BroadcastChannel: Profile created', created.id);
-            channel.postMessage({ entity: 'ChatProfile', action: 'create', id: created.id });
+            channel.postMessage({ entity: 'ChatProfile', action: profileAction, id: sessionProfile.id });
             channel.close();
           } catch (e) { console.error('BroadcastChannel send error:', e); }
         }
@@ -1100,8 +1126,8 @@ export default function Home() {
             const ipLocation = await fetchIpLocation();
             const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
             await db.entities.LoginEvent.create({
-              profile_id: created.id,
-              display_name: created.display_name,
+              profile_id: sessionProfile.id,
+              display_name: sessionProfile.display_name,
               type: "guest",
               auth_provider: "guest",
               ip: ipLocation?.ip || null,
