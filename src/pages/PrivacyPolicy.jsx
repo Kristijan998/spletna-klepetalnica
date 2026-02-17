@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { createPageUrl } from "@/utils";
@@ -7,6 +7,44 @@ import { t } from "@/components/utils/translations";
 export default function PrivacyPolicy() {
   const darkMode = document.documentElement.classList.contains("dark");
   const language = typeof window !== "undefined" ? localStorage.getItem("chat_language") || "sl" : "sl";
+
+  useEffect(() => {
+    if (typeof document === "undefined" || typeof window === "undefined") return;
+
+    const isEn = language === "en";
+    const pageTitle = isEn ? "Privacy Policy | Chattko" : "Politika zasebnosti | Chattko";
+    const pageDescription = isEn
+      ? "Read how Chattko collects, stores, and processes user data in chat."
+      : "Preberi, kako Chattko zbira, hrani in obdeluje uporabniske podatke v klepetu.";
+    const canonicalUrl = `${window.location.origin}${createPageUrl("PrivacyPolicy")}`;
+
+    const ensureMeta = (selector, attrName, attrValue) => {
+      let el = document.querySelector(selector);
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(attrName, attrValue);
+        document.head.appendChild(el);
+      }
+      return el;
+    };
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+      canonical = document.createElement("link");
+      canonical.setAttribute("rel", "canonical");
+      document.head.appendChild(canonical);
+    }
+
+    document.title = pageTitle;
+    canonical.setAttribute("href", canonicalUrl);
+
+    ensureMeta('meta[name="description"]', "name", "description").setAttribute("content", pageDescription);
+    ensureMeta('meta[property="og:title"]', "property", "og:title").setAttribute("content", pageTitle);
+    ensureMeta('meta[property="og:description"]', "property", "og:description").setAttribute("content", pageDescription);
+    ensureMeta('meta[property="og:url"]', "property", "og:url").setAttribute("content", canonicalUrl);
+    ensureMeta('meta[name="twitter:title"]', "name", "twitter:title").setAttribute("content", pageTitle);
+    ensureMeta('meta[name="twitter:description"]', "name", "twitter:description").setAttribute("content", pageDescription);
+  }, [language]);
 
   return (
     <div

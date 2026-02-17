@@ -270,6 +270,7 @@ export default function Home() {
     const seoDescription = isEn
       ? "Welcome to Chattko! Join our global web chat rooms for free. Meet new friends from all over the world in real-time."
       : "Pridruzi se Chattko, najboljsi slovenski klepetalnici. Klepetaj v zivo, spoznaj nove ljudi in se zabavaj popolnoma brezplacno.";
+    const canonicalUrl = `${window.location.origin}/?lang=${isEn ? "en" : "sl"}`;
 
     const manifestLink = document.querySelector('link#app-manifest[rel="manifest"]');
     if (manifestLink) {
@@ -321,6 +322,14 @@ export default function Home() {
     }
     descriptionMeta.setAttribute("content", seoDescription);
 
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (!canonicalLink) {
+      canonicalLink = document.createElement("link");
+      canonicalLink.setAttribute("rel", "canonical");
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute("href", canonicalUrl);
+
     let ogTitle = document.querySelector('meta[property="og:title"]');
     if (!ogTitle) {
       ogTitle = document.createElement("meta");
@@ -336,6 +345,14 @@ export default function Home() {
       document.head.appendChild(ogDescription);
     }
     ogDescription.setAttribute("content", seoDescription);
+
+    let ogUrl = document.querySelector('meta[property="og:url"]');
+    if (!ogUrl) {
+      ogUrl = document.createElement("meta");
+      ogUrl.setAttribute("property", "og:url");
+      document.head.appendChild(ogUrl);
+    }
+    ogUrl.setAttribute("content", canonicalUrl);
 
     let twitterTitle = document.querySelector('meta[name="twitter:title"]');
     if (!twitterTitle) {
