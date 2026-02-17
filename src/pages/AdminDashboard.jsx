@@ -805,6 +805,7 @@ export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
                           const meta = parseLoginMeta(ev.user_agent);
                           const location = [meta.city, meta.region, meta.country].filter(Boolean).join(", ");
                           const displayName = ev.display_name || ev.profile_name || "(brez imena)";
+                          const locationSource = meta.location_source || "unknown";
                           return (
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -820,6 +821,9 @@ export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
                             </div>
                             <div className={`text-xs mt-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
                               Lokacija: {location || "unknown"}
+                            </div>
+                            <div className={`text-xs mt-1 ${darkMode ? "text-gray-500" : "text-gray-500"}`}>
+                              Vir lokacije: {locationSource}
                             </div>
                           </div>
                           <div className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>

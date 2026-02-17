@@ -159,6 +159,7 @@ async function fetchIpLocation() {
           country: localData.country || null,
           city: localData.city || null,
           region: localData.region || null,
+          source: localData.source || "api",
         };
       }
     }
@@ -178,6 +179,7 @@ async function fetchIpLocation() {
       country: data?.country_name || data?.country || null,
       city: data?.city || null,
       region: data?.region || null,
+      source: "ipapi-direct",
     };
   } catch {
     return null;
@@ -1154,6 +1156,7 @@ export default function Home() {
                 country: ipLocation?.country || null,
                 city: ipLocation?.city || null,
                 region: ipLocation?.region || null,
+                location_source: ipLocation?.source || null,
               }),
               created_date: new Date().toISOString(),
             });
