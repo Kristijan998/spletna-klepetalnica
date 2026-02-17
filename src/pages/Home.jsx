@@ -270,7 +270,7 @@ export default function Home() {
     const seoDescription = isEn
       ? "Welcome to Chattko! Join our global web chat rooms for free. Meet new friends from all over the world in real-time."
       : "Pridruzi se Chattko, najboljsi slovenski klepetalnici. Klepetaj v zivo, spoznaj nove ljudi in se zabavaj popolnoma brezplacno.";
-    const canonicalUrl = `${window.location.origin}/?lang=${isEn ? "en" : "sl"}`;
+    const canonicalUrl = `https://www.chattko.com/?lang=${isEn ? "en" : "sl"}`;
 
     const manifestLink = document.querySelector('link#app-manifest[rel="manifest"]');
     if (manifestLink) {

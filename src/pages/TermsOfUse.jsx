@@ -16,7 +16,7 @@ export default function TermsOfUse() {
     const pageDescription = isEn
       ? "Review Chattko usage terms, acceptable behavior, and legal notices."
       : "Preberi pogoje uporabe Chattko, pravila vedenja in pravna obvestila.";
-    const canonicalUrl = `${window.location.origin}${createPageUrl("TermsOfUse")}`;
+    const canonicalUrl = `https://www.chattko.com${createPageUrl("TermsOfUse")}`;
 
     const ensureMeta = (selector, attrName, attrValue) => {
       let el = document.querySelector(selector);

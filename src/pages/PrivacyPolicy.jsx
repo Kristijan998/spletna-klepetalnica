@@ -16,7 +16,7 @@ export default function PrivacyPolicy() {
     const pageDescription = isEn
       ? "Read how Chattko collects, stores, and processes user data in chat."
       : "Preberi, kako Chattko zbira, hrani in obdeluje uporabniske podatke v klepetu.";
-    const canonicalUrl = `${window.location.origin}${createPageUrl("PrivacyPolicy")}`;
+    const canonicalUrl = `https://www.chattko.com${createPageUrl("PrivacyPolicy")}`;
 
     const ensureMeta = (selector, attrName, attrValue) => {
       let el = document.querySelector(selector);

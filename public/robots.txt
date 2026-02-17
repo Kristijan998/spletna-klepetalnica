@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
-Sitemap: https://chattko.com/sitemap.xml
+Sitemap: https://www.chattko.com/sitemap.xml
+
