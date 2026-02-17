@@ -803,9 +803,12 @@ export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
                       <div key={ev.id} className={`p-4 rounded-xl border ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-100"}`}>
                         {(() => {
                           const meta = parseLoginMeta(ev.user_agent);
-                          const location = [meta.city, meta.region, meta.country].filter(Boolean).join(", ");
+                          const profile = profiles.find((p) => p?.id === ev.profile_id);
+                          const locationCity = meta.city || profile?.city || null;
+                          const locationCountry = meta.country || profile?.country || null;
+                          const location = [locationCity, meta.region, locationCountry].filter(Boolean).join(", ");
                           const displayName = ev.display_name || ev.profile_name || "(brez imena)";
-                          const locationSource = meta.location_source || "unknown";
+                          const locationSource = meta.location_source || (profile?.country || profile?.city ? "profile" : "unknown");
                           return (
                         <div className="flex items-start justify-between gap-3">
                           <div>
