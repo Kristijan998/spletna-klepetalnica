@@ -415,11 +415,14 @@ export default function Home() {
     // By default preserve the profile but mark it offline and block immediate re-login
     const { preserveProfile = true } = options;
     const id = myProfile?.id;
+    const adminId = adminProfile?.id;
     setMyProfile(null);
+    setAdminProfile(null);
     setSelectedRoom(null);
     setSelectedGroup(null);
     setView("main");
     clearGuestAuth();
+    clearAdminAuth();
     if (id) {
       try {
         // Mark offline and set a temporary logout block to prevent immediate re-login (5 minutes)
@@ -441,15 +444,22 @@ export default function Home() {
         }
       }
     }
-  }, [myProfile?.id, clearGuestAuth, markProfileOffline]);
+    if (adminId && adminId !== id) {
+      await markProfileOffline(adminId);
+    }
+  }, [adminProfile?.id, myProfile?.id, clearAdminAuth, clearGuestAuth, markProfileOffline]);
 
   const logoutAdmin = useCallback(async () => {
-    const id = adminProfile?.id;
+    const id = adminProfile?.id || myProfile?.id;
     setAdminProfile(null);
+    setMyProfile(null);
+    setSelectedRoom(null);
+    setSelectedGroup(null);
     setView("main");
     clearAdminAuth();
+    clearGuestAuth();
     if (id) await markProfileOffline(id);
-  }, [adminProfile?.id, clearAdminAuth, markProfileOffline]);
+  }, [adminProfile?.id, myProfile?.id, clearAdminAuth, clearGuestAuth, markProfileOffline]);
 
   const restoreSession = useCallback(async () => {
     setLoadingRestore(true);
