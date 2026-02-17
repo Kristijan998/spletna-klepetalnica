@@ -1578,8 +1578,8 @@ export default function Home() {
       <div
         className={`min-h-screen ${
           darkMode
-            ? "bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"
-            : "bg-gradient-to-br from-slate-50 via-white to-slate-100"
+            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
+            : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
         } p-4`}
       >
         <div className="max-w-3xl mx-auto">

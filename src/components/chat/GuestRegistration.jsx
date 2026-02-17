@@ -21,7 +21,7 @@ const COUNTRY_FLAGS = {
   "Avstrija": "https://flagcdn.com/w40/at.png", "Nemčija": "https://flagcdn.com/w40/de.png", "Italija": "https://flagcdn.com/w40/it.png", "Švica": "https://flagcdn.com/w40/ch.png", "Velika Britanija": "https://flagcdn.com/w40/gb.png", "Francija": "https://flagcdn.com/w40/fr.png", "Španija": "https://flagcdn.com/w40/es.png",
   "Portugalska": "https://flagcdn.com/w40/pt.png", "Nizozemska": "https://flagcdn.com/w40/nl.png", "Belgija": "https://flagcdn.com/w40/be.png", "Danska": "https://flagcdn.com/w40/dk.png", "Švedska": "https://flagcdn.com/w40/se.png", "Norveška": "https://flagcdn.com/w40/no.png", "Finska": "https://flagcdn.com/w40/fi.png",
   "Poljska": "https://flagcdn.com/w40/pl.png", "Češka": "https://flagcdn.com/w40/cz.png", "Slovaška": "https://flagcdn.com/w40/sk.png", "Madžarska": "https://flagcdn.com/w40/hu.png", "Romunija": "https://flagcdn.com/w40/ro.png", "Bolgarija": "https://flagcdn.com/w40/bg.png", "Grčija": "https://flagcdn.com/w40/gr.png",
-  "ZDA": "https://flagcdn.com/w40/us.png", "Kanada": "https://flagcdn.com/w40/ca.png", "Avstralija": "https://flagcdn.com/w40/au.png", "Nova Zelandija": "https://flagcdn.com/w40/nz.png", "Drugo": "https://flagcdn.com/w40/un.png"
+  "ZDA": "https://flagcdn.com/w40/us.png", "Kanada": "https://flagcdn.com/w40/ca.png", "Avstralija": "https://flagcdn.com/w40/au.png", "Nova Zelandija": "https://flagcdn.com/w40/nz.png", "Drugo": "/flags/un.svg"
 };
 
 const COUNTRY_NAMES_EN = {

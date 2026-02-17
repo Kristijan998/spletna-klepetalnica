@@ -1,7 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { GoogleLogin } from "@react-oauth/google";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 
 export default function GoogleLoginButton({ language = "sl", darkMode = false, onCredential }) {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -55,22 +55,24 @@ export default function GoogleLoginButton({ language = "sl", darkMode = false, o
   }
 
   return (
-    <div className="w-full flex justify-center">
-      <GoogleLogin
-        onSuccess={(res) => {
-          const cred = res?.credential;
-          if (!cred) {
-            toast.error(language === "sl" ? "Google prijava ni uspela." : "Google sign-in failed.");
-            return;
-          }
-          if (typeof onCredential === "function") onCredential(cred);
-        }}
-        onError={() => toast.error(language === "sl" ? "Google prijava ni uspela." : "Google sign-in failed.")}
-        theme={darkMode ? "filled_black" : "outline"}
-        shape="pill"
-        size="large"
-        text={"signin_with"}
-      />
-    </div>
+    <GoogleOAuthProvider clientId={googleClientId}>
+      <div className="w-full flex justify-center">
+        <GoogleLogin
+          onSuccess={(res) => {
+            const cred = res?.credential;
+            if (!cred) {
+              toast.error(language === "sl" ? "Google prijava ni uspela." : "Google sign-in failed.");
+              return;
+            }
+            if (typeof onCredential === "function") onCredential(cred);
+          }}
+          onError={() => toast.error(language === "sl" ? "Google prijava ni uspela." : "Google sign-in failed.")}
+          theme={darkMode ? "filled_black" : "outline"}
+          shape="pill"
+          size="large"
+          text={"signin_with"}
+        />
+      </div>
+    </GoogleOAuthProvider>
   );
 }
