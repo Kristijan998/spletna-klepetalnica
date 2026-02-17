@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { db } from "@/api/db";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,8 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
   const [reportReason, setReportReason] = useState("");
   const [actionSending, setActionSending] = useState(false);
   const [partnerProfile, setPartnerProfile] = useState(null);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [partnerIsTyping, setPartnerIsTyping] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef(null);
@@ -54,6 +56,17 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
   const MAX_VIDEO_SIZE = 20 * 1024 * 1024; // 20 MB
   const MAX_VIDEO_DURATION = 60; // 1 minute
   const t = (sl, en) => (language === "en" ? en : sl);
+  const partnerImages = useMemo(() => {
+    const avatar = partnerProfile?.avatar_url ? [partnerProfile.avatar_url] : [];
+    const gallery = Array.isArray(partnerProfile?.gallery_images) ? partnerProfile.gallery_images.filter(Boolean) : [];
+    return Array.from(new Set([...avatar, ...gallery]));
+  }, [partnerProfile?.avatar_url, partnerProfile?.gallery_images]);
+
+  const openPartnerProfileGallery = () => {
+    if (!partnerProfile) return;
+    setSelectedImageIndex(0);
+    setShowProfileModal(true);
+  };
 
   const getVideoDuration = (file) =>
     new Promise((resolve) => {
@@ -611,17 +624,29 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="flex items-center gap-3">
-            {partnerProfile?.avatar_url ? (
-              <img
-                src={partnerProfile.avatar_url}
-                alt={partnerName || "Partner"}
-                className="w-9 h-9 rounded-xl object-cover"
-              />
-            ) : (
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                {partnerName?.[0]?.toUpperCase() || "?"}
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={openPartnerProfileGallery}
+              className="relative rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50"
+              title={t("Ogled profila", "View profile")}
+            >
+              {partnerProfile?.avatar_url ? (
+                <img
+                  src={partnerProfile.avatar_url}
+                  alt={partnerName || "Partner"}
+                  className="w-9 h-9 rounded-xl object-cover"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
+                  {partnerName?.[0]?.toUpperCase() || "?"}
+                </div>
+              )}
+              {partnerImages.length > 1 && (
+                <span className="absolute -bottom-1 -right-1 rounded-full bg-violet-600 text-white text-[10px] px-1.5 py-0.5 leading-none">
+                  {partnerImages.length}
+                </span>
+              )}
+            </button>
             <div>
               <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"} text-sm`}>{partnerName}</h3>
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -925,6 +950,51 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
               alt="Povečana slika"
               className="w-full h-auto max-h-[80vh] object-contain rounded"
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
+        <DialogContent className={`${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"} max-w-lg`}>
+          <DialogHeader>
+            <DialogTitle className={darkMode ? "text-white" : "text-gray-900"}>
+              {partnerName || t("Profil", "Profile")}
+            </DialogTitle>
+          </DialogHeader>
+
+          {partnerImages.length > 0 ? (
+            <div className="space-y-3">
+              <img
+                src={partnerImages[selectedImageIndex]}
+                alt={`${partnerName || "Partner"} ${selectedImageIndex + 1}`}
+                className="w-full max-h-[50vh] object-cover rounded-xl"
+              />
+
+              {partnerImages.length > 1 && (
+                <div className="grid grid-cols-5 gap-2">
+                  {partnerImages.map((img, idx) => (
+                    <button
+                      key={`${img}-${idx}`}
+                      type="button"
+                      onClick={() => setSelectedImageIndex(idx)}
+                      className={`rounded-lg overflow-hidden border ${
+                        idx === selectedImageIndex
+                          ? "border-violet-500"
+                          : darkMode
+                            ? "border-gray-700"
+                            : "border-gray-200"
+                      }`}
+                    >
+                      <img src={img} alt={`${partnerName || "Partner"} thumb ${idx + 1}`} className="w-full h-12 object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              {t("Uporabnik nima dodanih slik.", "This user has no uploaded photos.")}
+            </p>
           )}
         </DialogContent>
       </Dialog>
