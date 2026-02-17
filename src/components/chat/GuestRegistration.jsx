@@ -32,6 +32,7 @@ const COUNTRY_NAMES_EN = {
 };
 
 export default function GuestRegistration({ onRegister, isLoading, language, onLanguageDetect, darkMode, onCheckName }) {
+  const landingTitle = language === "sl" ? "Spletna klepetalnica Chattko" : "Chattko web chat";
   const [form, setForm] = useState({
     display_name: "",
     birth_year: "",
@@ -352,7 +353,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 mb-3">
           <MessageCircle className="w-6 h-6 text-white" />
         </div>
-        <h1 className={`text-2xl font-bold tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>{t("app.title", language)}</h1>
+        <h1 className={`text-2xl font-bold tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>{landingTitle}</h1>
       </div>
 
       <div className={`rounded-2xl shadow-lg border p-6 ${darkMode ? "bg-gray-800 border-gray-700 shadow-gray-900/50" : "bg-white border-gray-100 shadow-violet-100/50"}`}>

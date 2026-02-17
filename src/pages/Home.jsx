@@ -335,11 +335,11 @@ export default function Home() {
     const appTitle = isEn ? "Web chat" : "Klepetalnica";
     const chromeThemeColor = darkMode ? "#162a4a" : "#f4f7ff";
     const seoTitle = isEn
-      ? "Chattko - Free Global Web Chat & Online Rooms"
-      : "Chattko - Brezplacna spletna klepetalnica v slovenscini";
+      ? "Chattko | Free web chat and online chat rooms"
+      : "Spletna klepetalnica Chattko | Brezplacen slovenski klepet v zivo";
     const seoDescription = isEn
-      ? "Welcome to Chattko! Join our global web chat rooms for free. Meet new friends from all over the world in real-time."
-      : "Pridruzi se Chattko, najboljsi slovenski klepetalnici. Klepetaj v zivo, spoznaj nove ljudi in se zabavaj popolnoma brezplacno.";
+      ? "Join Chattko for free anonymous web chat. Meet new people, chat instantly, and enjoy a safe experience without registration."
+      : "Pridruzi se Chattko, najboljsi slovenski spletni klepetalnici. Klepetaj anonimno, spoznavaj nove ljudi in uzivaj v varni zabavi brez registracije.";
     const canonicalUrl = `https://www.chattko.com/?lang=${isEn ? "en" : "sl"}`;
 
     const manifestLink = document.querySelector('link#app-manifest[rel="manifest"]');
@@ -372,7 +372,7 @@ export default function Home() {
     appleTitleMeta.setAttribute("content", appTitle);
 
     document.documentElement.setAttribute("lang", isEn ? "en" : "sl");
-    document.title = appTitle;
+    document.title = seoTitle;
 
     let faviconLink = document.querySelector('link#app-favicon[rel="icon"]');
     if (!faviconLink) {
@@ -1575,6 +1575,26 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          {language === "sl" && (
+            <section className={`max-w-3xl mx-auto mt-10 mb-4 px-5 py-5 rounded-xl border text-left leading-relaxed ${darkMode ? "text-gray-300 border-gray-700 bg-gray-900/40" : "text-gray-600 border-gray-200 bg-white/70"}`}>
+              <h2 className={`text-lg font-semibold mb-3 ${darkMode ? "text-white" : "text-gray-900"}`}>Zakaj izbrati Chattko spletno klepetalnico?</h2>
+              <p className="mb-3">
+                <strong>Chattko</strong> je sodobna <strong>spletna klepetalnica</strong>, namenjena vsem, ki si zelijo hitrega in varnega druzenja na spletu.
+                V casu, ko so socialna omrezja postala zapletena, Chattko vraca preprostost. Vstopis, izberes vzdevek in ze si v svetu klepeta.
+                Nasa slovenska klepetalnica omogoca:
+              </p>
+              <ul className="list-disc pl-6 mb-3">
+                <li>Popolnoma anonimen klepet brez nepotrebne registracije.</li>
+                <li>Spoznavanje novih ljudi iz vseh koncev Slovenije v realnem casu.</li>
+                <li>Varno okolje za sproscen pogovor in druzenje.</li>
+              </ul>
+              <p>
+                Ne glede na to, ali isces nove prijatelje ali le sproscen vecerni klepet, je <strong>slovenski chat Chattko</strong> prava izbira zate.
+                Pridruzi se nam se danes in preveri, zakaj smo postali priljubljena tocka za spletno klepetanje.
+              </p>
+            </section>
+          )}
         </div>
       </div>
     );
