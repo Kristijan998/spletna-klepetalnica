@@ -148,6 +148,24 @@ function normalizeName(value) {
 }
 
 async function fetchIpLocation() {
+  // Prefer same-origin API on Vercel (more reliable than direct browser call to third-party service).
+  try {
+    const localRes = await fetch("/api/ip-location");
+    if (localRes.ok) {
+      const localData = await localRes.json();
+      if (localData && (localData.ip || localData.country || localData.city || localData.region)) {
+        return {
+          ip: localData.ip || null,
+          country: localData.country || null,
+          city: localData.city || null,
+          region: localData.region || null,
+        };
+      }
+    }
+  } catch {
+    // fallback below
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 3500);
