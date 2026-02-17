@@ -220,7 +220,18 @@ export default function Home() {
   const [myProfile, setMyProfile] = useState(null);
   const [adminProfile, setAdminProfile] = useState(null);
 
-  const [loadingRestore, setLoadingRestore] = useState(true);
+  const [loadingRestore, setLoadingRestore] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      if (localStorage.getItem(STORAGE_ADMIN_PROFILE_ID)) return true;
+      const session = window.sessionStorage;
+      const authId = session?.getItem(STORAGE_AUTH_PROFILE_ID) || localStorage.getItem(STORAGE_AUTH_PROFILE_ID);
+      const restoreRaw = session?.getItem(STORAGE_GUEST_RESTORE) || localStorage.getItem(STORAGE_GUEST_RESTORE);
+      return Boolean(authId || restoreRaw);
+    } catch {
+      return true;
+    }
+  });
   const [registering, setRegistering] = useState(false);
 
   const [profiles, setProfiles] = useState([]);
@@ -538,6 +549,22 @@ export default function Home() {
   }, [adminProfile?.id, myProfile?.id, clearAdminAuth, clearGuestAuth, markProfileOffline]);
 
   const restoreSession = useCallback(async () => {
+    const hasStoredSession = (() => {
+      try {
+        if (localStorage.getItem(STORAGE_ADMIN_PROFILE_ID)) return true;
+        const authId = safeStorageGet(guestStorage, STORAGE_AUTH_PROFILE_ID) || localStorage.getItem(STORAGE_AUTH_PROFILE_ID);
+        const restoreRaw = safeStorageGet(guestStorage, STORAGE_GUEST_RESTORE) || localStorage.getItem(STORAGE_GUEST_RESTORE);
+        return Boolean(authId || restoreRaw);
+      } catch {
+        return true;
+      }
+    })();
+
+    if (!hasStoredSession) {
+      setLoadingRestore(false);
+      return;
+    }
+
     setLoadingRestore(true);
     try {
       const adminId = localStorage.getItem(STORAGE_ADMIN_PROFILE_ID);

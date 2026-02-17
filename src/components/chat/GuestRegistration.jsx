@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -32,74 +32,6 @@ const COUNTRY_NAMES_EN = {
   "ZDA": "United States", "Kanada": "Canada", "Avstralija": "Australia", "Nova Zelandija": "New Zealand", "Drugo": "Other"
 };
 
-const CITIES_EN = {
-  "Slovenia": ["Ljubljana", "Maribor", "Celje", "Kranj", "Velenje", "Koper", "Novo Mesto", "Ptuj", "Kamnik", "Jesenice", "Nova Gorica", "Domžale", "Škofja Loka", "Postojna", "Murska Sobota", "Mozirje", "Other"],
-  "Croatia": ["Zagreb", "Split", "Rijeka", "Osijek", "Zadar", "Pula", "Karlovac", "Varaždin", "Šibenik", "Dubrovnik", "Other"],
-  "Serbia": ["Belgrade", "Novi Sad", "Niš", "Kragujevac", "Subotica", "Zrenjanin", "Pančevo", "Čačak", "Kruševac", "Other"],
-  "Bosnia and Herzegovina": ["Sarajevo", "Banja Luka", "Tuzla", "Zenica", "Mostar", "Prijedor", "Brčko", "Bijeljina", "Other"],
-  "North Macedonia": ["Skopje", "Bitola", "Kumanovo", "Prilep", "Tetovo", "Veles", "Ohrid", "Gostivar", "Other"],
-  "Montenegro": ["Podgorica", "Nikšić", "Pljevlja", "Bijelo Polje", "Cetinje", "Bar", "Herceg Novi", "Budva", "Other"],
-  "Austria": ["Vienna", "Graz", "Linz", "Salzburg", "Innsbruck", "Klagenfurt", "Villach", "Wels", "Other"],
-  "Germany": ["Berlin", "Munich", "Frankfurt", "Hamburg", "Cologne", "Stuttgart", "Düsseldorf", "Leipzig", "Other"],
-  "Italy": ["Rome", "Milan", "Turin", "Naples", "Genoa", "Bologna", "Florence", "Venice", "Trieste", "Other"],
-  "Switzerland": ["Zurich", "Geneva", "Basel", "Bern", "Lausanne", "Lucerne", "Other"],
-  "United Kingdom": ["London", "Manchester", "Birmingham", "Liverpool", "Leeds", "Glasgow", "Edinburgh", "Other"],
-  "France": ["Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes", "Strasbourg", "Bordeaux", "Other"],
-  "Spain": ["Madrid", "Barcelona", "Valencia", "Seville", "Zaragoza", "Malaga", "Bilbao", "Other"],
-  "Portugal": ["Lisbon", "Porto", "Braga", "Coimbra", "Faro", "Other"],
-  "Netherlands": ["Amsterdam", "Rotterdam", "The Hague", "Utrecht", "Eindhoven", "Tilburg", "Other"],
-  "Belgium": ["Brussels", "Antwerp", "Ghent", "Charleroi", "Liège", "Bruges", "Other"],
-  "Denmark": ["Copenhagen", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Other"],
-  "Sweden": ["Stockholm", "Gothenburg", "Malmö", "Uppsala", "Västerås", "Örebro", "Other"],
-  "Norway": ["Oslo", "Bergen", "Trondheim", "Stavanger", "Drammen", "Other"],
-  "Finland": ["Helsinki", "Espoo", "Tampere", "Vantaa", "Oulu", "Turku", "Other"],
-  "Poland": ["Warsaw", "Krakow", "Lodz", "Wroclaw", "Poznan", "Gdansk", "Other"],
-  "Czech Republic": ["Prague", "Brno", "Ostrava", "Plzen", "Liberec", "Other"],
-  "Slovakia": ["Bratislava", "Kosice", "Presov", "Zilina", "Banska Bystrica", "Other"],
-  "Hungary": ["Budapest", "Debrecen", "Szeged", "Miskolc", "Pecs", "Gyor", "Other"],
-  "Romania": ["Bucharest", "Cluj-Napoca", "Timisoara", "Iasi", "Constanta", "Other"],
-  "Bulgaria": ["Sofia", "Plovdiv", "Varna", "Burgas", "Ruse", "Other"],
-  "Greece": ["Athens", "Thessaloniki", "Patras", "Heraklion", "Larissa", "Other"],
-  "United States": ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose", "Other"],
-  "Canada": ["Toronto", "Montreal", "Vancouver", "Calgary", "Edmonton", "Ottawa", "Winnipeg", "Other"],
-  "Australia": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Gold Coast", "Canberra", "Other"],
-  "New Zealand": ["Auckland", "Wellington", "Christchurch", "Hamilton", "Tauranga", "Other"]
-};
-
-const CITIES_BY_COUNTRY = {
-  "Slovenija": ["Ljubljana", "Maribor", "Celje", "Kranj", "Velenje", "Koper", "Novo mesto", "Ptuj", "Kamnik", "Jesenice", "Nova Gorica", "Domžale", "Škofja Loka", "Postojna", "Murska Sobota", "Mozirje", "Drugo"],
-  "Hrvaška": ["Zagreb", "Split", "Rijeka", "Osijek", "Zadar", "Pula", "Karlovac", "Varaždin", "Šibenik", "Dubrovnik", "Drugo"],
-  "Srbija": ["Beograd", "Novi Sad", "Niš", "Kragujevac", "Subotica", "Zrenjanin", "Pančevo", "Čačak", "Kruševac", "Drugo"],
-  "Bosna in Hercegovina": ["Sarajevo", "Banja Luka", "Tuzla", "Zenica", "Mostar", "Prijedor", "Brčko", "Bijeljina", "Drugo"],
-  "Makedonija": ["Skopje", "Bitola", "Kumanovo", "Prilep", "Tetovo", "Veles", "Ohrid", "Gostivar", "Drugo"],
-  "Črna gora": ["Podgorica", "Nikšić", "Pljevlja", "Bijelo Polje", "Cetinje", "Bar", "Herceg Novi", "Budva", "Drugo"],
-  "Avstrija": ["Dunaj", "Gradec", "Linz", "Salzburg", "Innsbruck", "Klagenfurt", "Villach", "Wels", "Drugo"],
-  "Nemčija": ["Berlin", "München", "Frankfurt", "Hamburg", "Köln", "Stuttgart", "Düsseldorf", "Leipzig", "Drugo"],
-  "Italija": ["Rim", "Milano", "Torino", "Neapelj", "Genova", "Bologna", "Firenca", "Benetke", "Trst", "Drugo"],
-  "Švica": ["Zürich", "Ženeva", "Basel", "Bern", "Lausanne", "Luzern", "Drugo"],
-  "Velika Britanija": ["London", "Manchester", "Birmingham", "Liverpool", "Leeds", "Glasgow", "Edinburgh", "Drugo"],
-  "Francija": ["Pariz", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes", "Strasbourg", "Bordeaux", "Drugo"],
-  "Španija": ["Madrid", "Barcelona", "Valencia", "Sevilla", "Zaragoza", "Málaga", "Bilbao", "Drugo"],
-  "Portugalska": ["Lizbona", "Porto", "Braga", "Coimbra", "Faro", "Drugo"],
-  "Nizozemska": ["Amsterdam", "Rotterdam", "Haag", "Utrecht", "Eindhoven", "Tilburg", "Drugo"],
-  "Belgija": ["Bruselj", "Antwerpen", "Gent", "Charleroi", "Liège", "Brugge", "Drugo"],
-  "Danska": ["København", "Aarhus", "Odense", "Aalborg", "Esbjerg", "Drugo"],
-  "Švedska": ["Stockholm", "Göteborg", "Malmö", "Uppsala", "Västerås", "Örebro", "Drugo"],
-  "Norveška": ["Oslo", "Bergen", "Trondheim", "Stavanger", "Drammen", "Drugo"],
-  "Finska": ["Helsinki", "Espoo", "Tampere", "Vantaa", "Oulu", "Turku", "Drugo"],
-  "Poljska": ["Varšava", "Krakov", "Łódź", "Wrocław", "Poznań", "Gdańsk", "Drugo"],
-  "Češka": ["Praga", "Brno", "Ostrava", "Plzeň", "Liberec", "Drugo"],
-  "Slovaška": ["Bratislava", "Košice", "Prešov", "Žilina", "Banská Bystrica", "Drugo"],
-  "Madžarska": ["Budimpešta", "Debrecen", "Szeged", "Miskolc", "Pécs", "Győr", "Drugo"],
-  "Romunija": ["Bukarešta", "Cluj-Napoca", "Timișoara", "Iași", "Constanța", "Drugo"],
-  "Bolgarija": ["Sofija", "Plovdiv", "Varna", "Burgas", "Ruse", "Drugo"],
-  "Grčija": ["Atene", "Solun", "Patra", "Iraklio", "Larisa", "Drugo"],
-  "ZDA": ["New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia", "San Antonio", "San Diego", "Dallas", "San Jose", "Drugo"],
-  "Kanada": ["Toronto", "Montreal", "Vancouver", "Calgary", "Edmonton", "Ottawa", "Winnipeg", "Drugo"],
-  "Avstralija": ["Sydney", "Melbourne", "Brisbane", "Perth", "Adelaide", "Gold Coast", "Canberra", "Drugo"],
-  "Nova Zelandija": ["Auckland", "Wellington", "Christchurch", "Hamilton", "Tauranga", "Drugo"]
-};
-
 export default function GuestRegistration({ onRegister, isLoading, language, onLanguageDetect, darkMode, onCheckName }) {
   const [form, setForm] = useState({
     display_name: "",
@@ -117,6 +49,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
   const [nameCheckError, setNameCheckError] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [birthYearOpen, setBirthYearOpen] = useState(false);
+  const [cityData, setCityData] = useState({ en: null, sl: null });
   const nameCheckRequestRef = useRef(0);
   
   const funnyNamesSl = [
@@ -168,6 +101,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     let cancelled = false;
     let timerId = null;
     let idleHandle = null;
+    let ipFallbackTimer = null;
 
     const mapCountry = (value) => {
       if (!value) return "";
@@ -232,9 +166,19 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
       }
     };
 
+    const scheduleIpFallback = (delayMs = 2500) => {
+      if (cancelled) return;
+      if (ipFallbackTimer) window.clearTimeout(ipFallbackTimer);
+      ipFallbackTimer = window.setTimeout(() => {
+        if (!cancelled) {
+          void detectByIp();
+        }
+      }, delayMs);
+    };
+
     const detectLocation = () => {
       if (!navigator.geolocation) {
-        detectByIp();
+        scheduleIpFallback(3200);
         return;
       }
 
@@ -247,7 +191,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
               `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=sl`
             );
             if (!res.ok) {
-              detectByIp();
+              scheduleIpFallback();
               return;
             }
             const data = await res.json();
@@ -257,11 +201,11 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
               city: data?.city || data?.locality || "",
             });
           } catch {
-            detectByIp();
+            scheduleIpFallback();
           }
         },
         () => {
-          detectByIp();
+          scheduleIpFallback();
         },
         { timeout: 2500, maximumAge: 60000 }
       );
@@ -272,14 +216,15 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     };
 
     if ("requestIdleCallback" in window) {
-      idleHandle = window.requestIdleCallback(startDetection, { timeout: 1200 });
+      idleHandle = window.requestIdleCallback(startDetection, { timeout: 2200 });
     } else {
-      timerId = window.setTimeout(startDetection, 800);
+      timerId = window.setTimeout(startDetection, 1800);
     }
 
     return () => {
       cancelled = true;
       if (timerId) window.clearTimeout(timerId);
+      if (ipFallbackTimer) window.clearTimeout(ipFallbackTimer);
       if (idleHandle && "cancelIdleCallback" in window) {
         window.cancelIdleCallback(idleHandle);
       }
@@ -356,16 +301,38 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     return () => clearTimeout(timer);
   }, [form.display_name, onCheckName, funnyNames, language]);
 
+  const loadCityData = useCallback(async () => {
+    if (cityData.en && cityData.sl) return;
+    try {
+      const mod = await import("./location-data");
+      setCityData({
+        en: mod.CITIES_EN || {},
+        sl: mod.CITIES_BY_COUNTRY || {},
+      });
+    } catch {
+      // ignore data loading errors
+    }
+  }, [cityData.en, cityData.sl]);
+
+  useEffect(() => {
+    if (form.country) {
+      void loadCityData();
+    }
+  }, [form.country, loadCityData]);
+
   const getCountryDisplayName = (country) => {
     return language === "en" ? (COUNTRY_NAMES_EN[country] || country) : country;
   };
 
   const getCityOptions = () => {
+    if (!cityData.en || !cityData.sl) {
+      return language === "en" ? ["Other"] : ["Drugo"];
+    }
     if (language === "en") {
       const enCountryName = getCountryDisplayName(form.country);
-      return CITIES_EN[enCountryName] || ["Other"];
+      return cityData.en[enCountryName] || ["Other"];
     }
-    return CITIES_BY_COUNTRY[form.country] || ["Drugo"];
+    return cityData.sl[form.country] || ["Drugo"];
   };
 
   const handleSubmit = async (e) => {
@@ -538,7 +505,13 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
 
             <div className="space-y-1.5">
               <Label className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("register.city", language)}</Label>
-              <Select value={form.city} onValueChange={(v) => setForm({ ...form, city: v })}>
+              <Select
+                value={form.city}
+                onValueChange={(v) => setForm({ ...form, city: v })}
+                onOpenChange={(open) => {
+                  if (open) void loadCityData();
+                }}
+              >
                 <SelectTrigger
                   aria-label={language === "en" ? "Select city" : "Izberi mesto"}
                   className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}
@@ -589,4 +562,5 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     </motion.div>
   );
 }
+
 
