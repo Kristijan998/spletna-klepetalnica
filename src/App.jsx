@@ -68,29 +68,31 @@ function App() {
   return (
     <>
       <Router basename={import.meta.env.BASE_URL}>
-        <Routes>
-          <Route path="/" element={
-            <LayoutWrapper currentPageName={mainPageKey}>
-              <Suspense fallback={null}>
-                {MainPage ? <MainPage /> : null}
-              </Suspense>
-            </LayoutWrapper>
-          } />
-          {Object.entries(Pages).map(([path, Page]) => (
-            <Route
-              key={path}
-              path={`/${path}`}
-              element={
-                <LayoutWrapper currentPageName={path}>
-                  <Suspense fallback={null}>
-                    <Page />
-                  </Suspense>
-                </LayoutWrapper>
-              }
-            />
-          ))}
-          <Route path="*" element={<PageNotFound />} />
-        </Routes>
+        <main id="main-content">
+          <Routes>
+            <Route path="/" element={
+              <LayoutWrapper currentPageName={mainPageKey}>
+                <Suspense fallback={null}>
+                  {MainPage ? <MainPage /> : null}
+                </Suspense>
+              </LayoutWrapper>
+            } />
+            {Object.entries(Pages).map(([path, Page]) => (
+              <Route
+                key={path}
+                path={`/${path}`}
+                element={
+                  <LayoutWrapper currentPageName={path}>
+                    <Suspense fallback={null}>
+                      <Page />
+                    </Suspense>
+                  </LayoutWrapper>
+                }
+              />
+            ))}
+            <Route path="*" element={<PageNotFound />} />
+          </Routes>
+        </main>
       </Router>
       <Toaster richColors position="top-right" />
       {AnalyticsComponent ? <AnalyticsComponent /> : null}

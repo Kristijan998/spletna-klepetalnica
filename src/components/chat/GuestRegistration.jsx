@@ -523,7 +523,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
 
           <div className="space-y-1.5">
             <Label className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
-              {t("register.bio", language)} <span className={darkMode ? "text-gray-500" : "text-gray-400"}>{t("register.bioOptional", language)}</span>
+              {t("register.bio", language)} <span className={darkMode ? "text-gray-400" : "text-gray-500"}>{t("register.bioOptional", language)}</span>
             </Label>
             <Textarea
               placeholder={t("register.bioPlaceholder", language)}

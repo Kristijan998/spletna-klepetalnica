@@ -20,7 +20,8 @@ export default function LanguageSelector({ language, onChange, darkMode }) {
           <span className={darkMode ? "text-white" : "text-gray-900"}>
             <img
               src={current.flag}
-              alt={current.full}
+              alt=""
+              aria-hidden="true"
               width="16"
               height="12"
               className={`inline-block w-4 h-3 align-middle mr-1.5 ring-1 ${darkMode ? "ring-gray-600" : "ring-gray-200"} object-cover`}
@@ -32,7 +33,8 @@ export default function LanguageSelector({ language, onChange, darkMode }) {
           <SelectItem value="sl" className={darkMode ? "text-white hover:bg-gray-700" : "text-gray-900"}>
             <img
               src={labels.sl.flag}
-              alt={labels.sl.full}
+              alt=""
+              aria-hidden="true"
               width="16"
               height="12"
               className={`inline-block w-4 h-3 align-middle mr-1.5 ring-1 ${darkMode ? "ring-gray-600" : "ring-gray-200"} object-cover`}
@@ -42,7 +44,8 @@ export default function LanguageSelector({ language, onChange, darkMode }) {
           <SelectItem value="en" className={darkMode ? "text-white hover:bg-gray-700" : "text-gray-900"}>
             <img
               src={labels.en.flag}
-              alt={labels.en.full}
+              alt=""
+              aria-hidden="true"
               width="16"
               height="12"
               className={`inline-block w-4 h-3 align-middle mr-1.5 ring-1 ${darkMode ? "ring-gray-600" : "ring-gray-200"} object-cover`}
