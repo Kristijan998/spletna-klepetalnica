@@ -50,6 +50,7 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
   const [birthYearOpen, setBirthYearOpen] = useState(false);
   const [cityData, setCityData] = useState({ en: null, sl: null });
   const nameCheckRequestRef = useRef(0);
+  const hasRequestedPreciseLocationRef = useRef(false);
   
   const funnyNamesSl = [
     "MačjiŠef", "KralicaVihrov", "NinjaPečica", "SuperPiškot", "KozorogNaRolki",
@@ -100,7 +101,6 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     let cancelled = false;
     let timerId = null;
     let idleHandle = null;
-    let ipFallbackTimer = null;
 
     const mapCountry = (value) => {
       if (!value) return "";
@@ -165,53 +165,10 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
       }
     };
 
-    const scheduleIpFallback = (delayMs = 2500) => {
-      if (cancelled) return;
-      if (ipFallbackTimer) window.clearTimeout(ipFallbackTimer);
-      ipFallbackTimer = window.setTimeout(() => {
-        if (!cancelled) {
-          void detectByIp();
-        }
-      }, delayMs);
-    };
-
-    const detectLocation = () => {
-      if (!navigator.geolocation) {
-        scheduleIpFallback(3200);
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          if (cancelled) return;
-          const { latitude, longitude } = position.coords;
-          try {
-            const res = await fetch(
-              `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=sl`
-            );
-            if (!res.ok) {
-              scheduleIpFallback();
-              return;
-            }
-            const data = await res.json();
-            applyDetected({
-              countryCode: data?.countryCode || "",
-              countryName: data?.countryName || "",
-              city: data?.city || data?.locality || "",
-            });
-          } catch {
-            scheduleIpFallback();
-          }
-        },
-        () => {
-          scheduleIpFallback();
-        },
-        { timeout: 2500, maximumAge: 60000 }
-      );
-    };
-
     const startDetection = () => {
-      if (!cancelled) detectLocation();
+      if (!cancelled) {
+        void detectByIp();
+      }
     };
 
     if ("requestIdleCallback" in window) {
@@ -223,11 +180,59 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
     return () => {
       cancelled = true;
       if (timerId) window.clearTimeout(timerId);
-      if (ipFallbackTimer) window.clearTimeout(ipFallbackTimer);
       if (idleHandle && "cancelIdleCallback" in window) {
         window.cancelIdleCallback(idleHandle);
       }
     };
+  }, [onLanguageDetect]);
+
+  const requestPreciseLocation = useCallback(() => {
+    if (hasRequestedPreciseLocationRef.current) return;
+    if (!navigator.geolocation) return;
+    hasRequestedPreciseLocationRef.current = true;
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          const res = await fetch(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=sl`
+          );
+          if (!res.ok) return;
+          const data = await res.json();
+
+          const countryMap = {
+            "Slovenia": "Slovenija",
+            "Croatia": "HrvaÅ¡ka",
+            "Serbia": "Srbija",
+            "Bosnia and Herzegovina": "Bosna in Hercegovina",
+            "Austria": "Avstrija",
+            "Germany": "NemÄija",
+            "Italy": "Italija"
+          };
+          const mappedCountry = countryMap[data?.countryName] || data?.countryName || "";
+          const city = data?.city || data?.locality || "";
+          const countryCode = data?.countryCode || "";
+
+          if (onLanguageDetect && countryCode) {
+            onLanguageDetect(countryCode === "SI" ? "sl" : "en");
+          }
+
+          if (mappedCountry && COUNTRIES.includes(mappedCountry)) {
+            setForm((prev) => (prev.country ? prev : { ...prev, country: mappedCountry }));
+          }
+          if (city) {
+            setForm((prev) => (prev.city ? prev : { ...prev, city }));
+          }
+        } catch {
+          // ignore detection errors
+        }
+      },
+      () => {
+        // ignore denied geolocation
+      },
+      { timeout: 2500, maximumAge: 60000 }
+    );
   }, [onLanguageDetect]);
 
   useEffect(() => {
@@ -477,7 +482,13 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className={`text-xs font-medium ${darkMode ? "text-gray-300" : "text-gray-600"}`}>{t("register.country", language)}</Label>
-              <Select value={form.country} onValueChange={(v) => setForm({ ...form, country: v, city: "" })}>
+              <Select
+                value={form.country}
+                onValueChange={(v) => setForm({ ...form, country: v, city: "" })}
+                onOpenChange={(open) => {
+                  if (open) requestPreciseLocation();
+                }}
+              >
                 <SelectTrigger
                   aria-label={language === "en" ? "Select country" : "Izberi državo"}
                   className={`h-10 rounded-lg text-sm ${darkMode ? "bg-gray-900 border-gray-600 text-white" : "border-gray-200 text-gray-900"}`}
@@ -503,7 +514,10 @@ export default function GuestRegistration({ onRegister, isLoading, language, onL
                 value={form.city}
                 onValueChange={(v) => setForm({ ...form, city: v })}
                 onOpenChange={(open) => {
-                  if (open) void loadCityData();
+                  if (open) {
+                    void loadCityData();
+                    requestPreciseLocation();
+                  }
                 }}
               >
                 <SelectTrigger

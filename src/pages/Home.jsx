@@ -642,16 +642,13 @@ export default function Home() {
 
   // Store loadData ref for cross-tab communication
   const loadDataRef = useRef(null);
+  const broadcastChannelRef = useRef(null);
   
   // Global BroadcastChannel listener - always active to detect new profiles
   useEffect(() => {
-    console.warn("\u26A0\uFE0F POMEMBNO: Lokalni na\u010Din (localStorage) deluje samo znotraj ISTEGA brskalni\u0161kega profila (npr. isti Chrome profil).");
-    console.warn("\u26A0\uFE0F Za testiranje dveh gostov uporabi dva zavihka v istem profilu (vsak zavihek ima svoj sessionStorage). Drugi Chrome profili/brskalniki se ne vidijo.");
-    let channel;
     if (typeof BroadcastChannel !== 'undefined') {
-      channel = new BroadcastChannel('local_db_updates');
-      channel.onmessage = (event) => {
-        console.log('\uD83D\uDCE1 BroadcastChannel event:', event.data);
+      broadcastChannelRef.current = new BroadcastChannel('local_db_updates');
+      broadcastChannelRef.current.onmessage = (event) => {
         const entity = event.data?.entity;
         const action = event.data?.action;
         // Always reload on entity changes
@@ -665,16 +662,12 @@ export default function Home() {
           }
         }
       };
-    } else {
-      console.error('BroadcastChannel NOT supported in this browser!');
     }
 
     // Also listen to storage events as fallback
     const onStorageChange = (e) => {
-      console.log('\uD83D\uDCBE Storage event:', e.key);
       if (e.key && e.key.includes('ChatProfile')) {
         if (loadDataRef.current) {
-          console.log('\uD83D\uDD04 Reloading from storage event...');
           loadDataRef.current();
         }
       }
@@ -683,7 +676,10 @@ export default function Home() {
 
     return () => {
       window.removeEventListener("storage", onStorageChange);
-      if (channel) channel.close();
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+        broadcastChannelRef.current = null;
+      }
     };
   }, []);
 
@@ -729,12 +725,10 @@ export default function Home() {
     const updateAndBroadcast = async () => {
       await markProfileOnline(id);
       // Broadcast every activity update so other tabs know we're online
-      if (typeof BroadcastChannel !== 'undefined') {
-        try {
-          const channel = new BroadcastChannel('local_db_updates');
-          channel.postMessage({ entity: 'ChatProfile', action: 'update', id });
-          channel.close();
-        } catch (e) { console.error('Activity broadcast error:', e); }
+      try {
+        broadcastChannelRef.current?.postMessage({ entity: 'ChatProfile', action: 'update', id });
+      } catch (e) {
+        console.error('Activity broadcast error:', e);
       }
     };
 
@@ -773,18 +767,6 @@ export default function Home() {
         db.entities.ChatGroup.list("-created_date", 200),
         db.entities.ChatRoom.list("-updated_date", 300),
       ]);
-
-      console.log('=== PROFILES DEBUG ===');
-      console.log('Total profiles in localStorage:', allProfiles?.length);
-      console.log('My profile ID:', myProfile.id);
-      console.log('All profiles:', allProfiles?.map(p => ({
-        id: p.id,
-        name: p.display_name,
-        is_online: p.is_online,
-        last_activity: p.last_activity,
-        isOnlineCheck: isProfileOnline(p)
-      })));
-      console.log('======================');
 
       // Migration: Add is_banned field to all old profiles
       const profilesToMigrate = (allProfiles || []).filter(p => p?.is_banned === undefined);
@@ -1180,12 +1162,10 @@ export default function Home() {
         }, 300);
         
         // Trigger update in other tabs via multiple channels
-        if (typeof BroadcastChannel !== 'undefined') {
-          try {
-            const channel = new BroadcastChannel('local_db_updates');
-            channel.postMessage({ entity: 'ChatProfile', action: profileAction, id: sessionProfile.id });
-            channel.close();
-          } catch (e) { console.error('BroadcastChannel send error:', e); }
+        try {
+          broadcastChannelRef.current?.postMessage({ entity: 'ChatProfile', action: profileAction, id: sessionProfile.id });
+        } catch (e) {
+          console.error('BroadcastChannel send error:', e);
         }
 
         if (db?.entities?.LoginEvent?.create) {
