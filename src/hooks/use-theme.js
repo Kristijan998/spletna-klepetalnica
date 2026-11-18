@@ -29,12 +29,12 @@ export function applyTheme(theme) {
 
 export function applyInitialTheme() {
   const stored = getStoredTheme();
-  const theme = stored || getSystemTheme();
+  const theme = stored || "dark";
   applyTheme(theme);
 }
 
 export function useTheme() {
-  const [theme, setThemeState] = useState(() => getStoredTheme() || getSystemTheme());
+  const [theme, setThemeState] = useState(() => getStoredTheme() || "dark");
 
   useEffect(() => {
     applyTheme(theme);

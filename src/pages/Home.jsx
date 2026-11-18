@@ -1,25 +1,22 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { db } from "@/api/db";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { db, isLocalDb } from "@/api/db";
 import { toast } from "sonner";
 import {
+  Home as HomeIcon,
   LifeBuoy,
   LogOut,
-  MessageCircle,
-  Moon,
+  MessageSquarePlus,
+  PanelLeft,
+  RefreshCw,
+  Search,
   Settings,
-  Sun,
-  Users,
-  MessagesSquare,
-  History,
+  SunMoon,
 } from "lucide-react";
 
-import LanguageSelector from "@/components/LanguageSelector";
 import GuestRegistration from "@/components/chat/GuestRegistration";
 import PublicChat, { PUBLIC_CHAT_ID } from "@/components/chat/PublicChat";
-import UserCard from "@/components/chat/UserCard";
 import InactivityMonitor from "@/components/chat/InactivityMonitor";
+import { ClassicWindow, NewChatDialog, PresenceList, ProfileDialog, ToolButton, TreeNav } from "@/components/chat/ClassicLayout";
 
 import { t } from "@/components/utils/translations";
 import { useTheme } from "@/hooks/use-theme";
@@ -122,6 +119,31 @@ function isProfileOnline(profile) {
   const last = new Date(profile.last_activity).getTime();
   if (Number.isNaN(last)) return false;
   return Date.now() - last < ONLINE_STALE_MS;
+}
+
+// Izbriše vse zasebne pogovore uporabnika; sporočila izbriše baza (on delete cascade) ali lokalno spodaj.
+async function deleteRoomsOf(profileId) {
+  if (!profileId) return;
+  try {
+    const all = await db.entities.ChatRoom.list("-updated_date", 500);
+    const mine = (all || []).filter((r) => Array.isArray(r?.participant_ids) && r.participant_ids.includes(profileId));
+    await Promise.all(
+      mine.map(async (room) => {
+        if (isLocalDb) {
+          // Lokalna baza nima kaskadnega brisanja – sporočila izbrišemo sami.
+          try {
+            const msgs = await db.entities.ChatMessage.filter({ room_id: room.id }, "created_date", 1000);
+            await Promise.all((msgs || []).map((m) => db.entities.ChatMessage.delete(m.id).catch(() => {})));
+          } catch {
+            // ignore
+          }
+        }
+        await db.entities.ChatRoom.delete(room.id).catch(() => {});
+      })
+    );
+  } catch (err) {
+    console.error("Error deleting conversations on logout:", err);
+  }
 }
 
 function isRecentlyOffline(profile) {
@@ -250,6 +272,10 @@ export default function Home() {
   });
 
   const [view, setView] = useState("main");
+  const [treeOpen, setTreeOpen] = useState(() => typeof window === "undefined" || !window.matchMedia?.("(max-width: 640px)").matches);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [profileDialog, setProfileDialog] = useState(null);
+  const [newChatOpen, setNewChatOpen] = useState(false);
   const activityIntervalRef = useRef(null);
   const lastUnreadByProfileIdRef = useRef({});
   const unreadInitRef = useRef(false);
@@ -513,6 +539,8 @@ export default function Home() {
     clearGuestAuth();
     clearAdminAuth();
     if (id) {
+      // Ob odjavi se izbrišejo vsi tvoji zasebni pogovori (sporočila se izbrišejo skupaj s pogovorom).
+      await deleteRoomsOf(id);
       try {
         // Mark offline and set a temporary logout block to prevent immediate re-login (5 minutes)
         const blockUntil = new Date(Date.now() + 5 * 60 * 1000).toISOString();
@@ -626,7 +654,7 @@ export default function Home() {
 
   useEffect(() => {
     restoreSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   useEffect(() => {
@@ -762,7 +790,7 @@ export default function Home() {
   }, [adminProfile?.id, myProfile?.id, markProfileOnline, markProfileOffline]);
 
   const loadData = useCallback(async () => {
-    if (!myProfile?.id || view !== "main") return;
+    if (!myProfile?.id || view === "admin") return;
     try {
       const [allProfiles, allGroups, allRooms] = await Promise.all([
         db.entities.ChatProfile.list("-last_activity", 300),
@@ -1277,96 +1305,6 @@ export default function Home() {
     [language, myProfile?.id]
   );
 
-  const mainHeader = useMemo(() => {
-    const onlineOthers = (profiles || []).filter(isProfileOnline).length;
-    const onlineCount = (myProfile?.id ? 1 : 0) + onlineOthers;
-    return (
-      <div className="flex flex-wrap items-center justify-between mb-8 gap-2">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-            <MessageCircle className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className={`text-xl font-bold ${darkMode ? "text-white" : "text-gray-900"} tracking-tight`}>
-              {t("app.title", language)}
-            </h1>
-            <p className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-              {t("header.loggedAs", language)}{" "}
-              <span className="text-violet-600 font-medium">{myProfile?.display_name || ""}</span>
-            </p>
-            <p className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-              <span className="text-green-600 font-medium">{onlineCount} {language === "sl" ? "aktivnih" : "active"}</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-1">
-          <LanguageSelector language={language} onChange={persistLanguage} darkMode={darkMode} />
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              toggleTheme();
-              setTimeout(() => setProfiles([...profiles]), 0);
-            }}
-            aria-label={
-              darkMode
-                ? language === "sl"
-                  ? "Vklopi svetli način"
-                  : "Switch to light mode"
-                : language === "sl"
-                  ? "Vklopi temni način"
-                  : "Switch to dark mode"
-            }
-            className="rounded-xl h-9 w-9"
-            title={
-              darkMode
-                ? language === "sl"
-                  ? "Svetli način"
-                  : "Light mode"
-                : language === "sl"
-                  ? "Temni način"
-                  : "Dark mode"
-            }
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </Button>
-          {myProfile && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setView("support")}
-                aria-label={t("support.title", language)}
-                className="rounded-xl h-9 w-9"
-                title={t("support.title", language)}
-              >
-                <LifeBuoy className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setView("settings")}
-                aria-label={t("settings.title", language)}
-                className="rounded-xl h-9 w-9"
-                title={t("settings.title", language)}
-              >
-                <Settings className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={logoutGuest}
-                className={`rounded-xl ${darkMode ? "text-gray-400 hover:text-red-400" : "text-gray-500 hover:text-red-500"} gap-2 text-sm`}
-              >
-                <LogOut className="w-4 h-4" />
-                {t("header.logout", language)}
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  }, [darkMode, language, logoutGuest, myProfile, persistLanguage, profiles]);
 
   // 10-minute auto-logout if user is inactive or closes browser
   useEffect(() => {
@@ -1431,6 +1369,7 @@ export default function Home() {
         const AUTO_LOGOUT_MS = 10 * 60 * 1000;
 
         if (elapsedMs >= AUTO_LOGOUT_MS) {
+          await deleteRoomsOf(profileId);
           try {
             await db.entities.ChatProfile.delete(profileId);
           } catch (err) {
@@ -1471,294 +1410,231 @@ export default function Home() {
     );
   }
 
+  const sl = language === "sl";
+
+  const themeButton = (
+    <ToolButton icon={SunMoon} label={sl ? "Tema" : "Theme"} title={darkMode ? (sl ? "Svetla tema" : "Light theme") : (sl ? "Temna tema" : "Dark theme")} onClick={toggleTheme} />
+  );
+  const languageSelect = (
+    <select className="k-inp" style={{ width: "auto", padding: "2px 4px" }} aria-label={sl ? "Jezik" : "Language"} value={language} onChange={(e) => persistLanguage(e.target.value)}>
+      <option value="sl">SLO</option>
+      <option value="en">ENG</option>
+    </select>
+  );
+
   if (!myProfile) {
     return (
-      <div className={`min-h-dvh w-full ${
-        darkMode
-          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-          : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
-      } p-4`}
+      <ClassicWindow
+        subtitle={sl ? "Vstop" : "Join"}
+        toolbar={<><span className="k-grow" />{languageSelect}{themeButton}</>}
+        status={
+          <>
+            <span><span className={`k-dot${isOnline ? "" : " k-away"}`} />{isOnline ? (sl ? "Povezano" : "Connected") : t("conn.reconnecting", language)}</span>
+            <span>{sl ? "Nisi prijavljen" : "Not signed in"}</span>
+          </>
+        }
       >
-        <div className="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col">
-          <header className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600">
-                <MessageCircle className="h-5 w-5 text-white" aria-hidden="true" />
-              </div>
-              <span className={`text-lg font-bold tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>
-                {t("app.title", language)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <LanguageSelector language={language} onChange={persistLanguage} darkMode={darkMode} />
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleTheme}
-                aria-label={darkMode ? (language === "sl" ? "Vklopi svetli način" : "Switch to light mode") : (language === "sl" ? "Vklopi temni način" : "Switch to dark mode")}
-                className={`rounded-xl ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                title={darkMode ? (language === "sl" ? "Svetli način" : "Light mode") : (language === "sl" ? "Temni način" : "Dark mode")}
-              >
-                {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-              </Button>
-            </div>
-          </header>
-
-          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-6 sm:pb-16">
-            <GuestRegistration
-              onRegister={onRegister}
-              isLoading={registering}
-              language={language}
-              darkMode={darkMode}
-            />
-            <div className="mt-4 flex items-center justify-center gap-4 text-center">
-              <button
-                type="button"
-                onClick={() => (window.location.href = createPageUrl("PrivacyPolicy"))}
-                className={`text-xs underline ${darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-500 hover:text-gray-700"}`}
-              >
+        <main className="k-entry">
+          <div className="k-entrybox">
+            <GuestRegistration onRegister={onRegister} isLoading={registering} language={language} darkMode={darkMode} />
+            <div className="k-links">
+              <button type="button" className="k-link" onClick={() => (window.location.href = createPageUrl("PrivacyPolicy"))}>
                 {t("privacy.title", language)}
               </button>
-              <button
-                type="button"
-                onClick={() => (window.location.href = createPageUrl("TermsOfUse"))}
-                className={`text-xs underline ${darkMode ? "text-gray-400 hover:text-gray-300" : "text-gray-500 hover:text-gray-700"}`}
-              >
+              <button type="button" className="k-link" onClick={() => (window.location.href = createPageUrl("TermsOfUse"))}>
                 {t("terms.title", language)}
               </button>
             </div>
           </div>
-        </div>
-      </div>
+        </main>
+      </ClassicWindow>
     );
   }
 
+  /* ---------- prijavljen: klasično okno ---------- */
+  const blockedIds = new Set(myProfile.blocked_users || []);
+  const visibleProfiles = (profiles || []).filter((p) => p?.id && p.id !== myProfile.id && !blockedIds.has(p.id) && !p.is_admin);
+  const onlineProfiles = visibleProfiles.filter(isProfileOnline);
+  const partnerId = selectedRoom?.participant_ids?.find((id) => id !== myProfile.id) || null;
+  const partnerName = selectedRoom?.participant_names?.find((_, idx) => selectedRoom.participant_ids?.[idx] === partnerId) || "";
+  const partnerProfile = partnerId ? visibleProfiles.find((p) => p.id === partnerId) : null;
+
+  const peopleAll = [
+    { profile: myProfile, online: true },
+    ...visibleProfiles.map((p) => ({ profile: p, online: isProfileOnline(p) })),
+  ];
+  const peopleHere =
+    selectedRoom && view === "main"
+      ? [
+          { profile: myProfile, online: true },
+          ...(partnerProfile
+            ? [{ profile: partnerProfile, online: isProfileOnline(partnerProfile) }]
+            : partnerId
+              ? [{ profile: { id: partnerId, display_name: partnerName }, online: false }]
+              : []),
+        ]
+      : peopleAll;
+
+  const conversationRooms = [...(rooms || [])];
+  if (selectedRoom && !conversationRooms.some((r) => r.id === selectedRoom.id)) conversationRooms.unshift(selectedRoom);
+  const conversations = conversationRooms
+    .map((room) => {
+      const pid = room?.participant_ids?.find((id) => id !== myProfile.id) || null;
+      const name = room?.participant_names?.find((_, idx) => room.participant_ids?.[idx] === pid) || "?";
+      return { id: room.id, room, pid, name, unread: (pid && unreadByProfileId[pid]) || 0 };
+    })
+    .filter((c) => c.pid && !blockedIds.has(c.pid) && (c.room.last_message || c.unread > 0 || c.id === selectedRoom?.id));
+
+  const treeSelected = view === "settings" ? "settings" : view === "support" ? "" : selectedRoom ? `room:${selectedRoom.id}` : "public";
+  const closeTreeOnPhone = () => {
+    if (window.matchMedia?.("(max-width: 640px)").matches) setTreeOpen(false);
+  };
+  const goPublic = () => {
+    setSelectedRoom(null);
+    setView("main");
+    closeTreeOnPhone();
+  };
+  const onTreeSelect = (id) => {
+    if (id === "home" || id === "public") return goPublic();
+    if (id === "settings") {
+      setView("settings");
+      closeTreeOnPhone();
+      return;
+    }
+    const c = conversations.find((x) => `room:${x.id}` === id);
+    if (c) {
+      setSelectedRoom(c.room);
+      setView("main");
+      closeTreeOnPhone();
+    }
+  };
+  const startChat = (profile) => {
+    setProfileDialog(null);
+    setNewChatOpen(false);
+    setView("main");
+    closeTreeOnPhone();
+    void openOrCreateRoom(profile);
+  };
+
+  const subtitle =
+    view === "settings"
+      ? t("settings.title", language)
+      : view === "support"
+        ? t("support.title", language)
+        : selectedRoom
+          ? partnerName
+          : sl ? "# Splošno" : "# General";
+
+  let center;
   if (view === "settings") {
-    return (
-      <div
-        className={`min-h-screen ${
-          darkMode
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-            : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
-        } p-4`}
-      >
-        <div className="max-w-3xl mx-auto">
-          {mainHeader}
-          <Suspense fallback={null}>
-            <ProfileSettings profile={myProfile} onBack={() => setView("main")} onSave={saveProfile} language={language} />
-          </Suspense>
-        </div>
-      </div>
+    center = <ProfileSettings profile={myProfile} onBack={goPublic} onSave={saveProfile} language={language} />;
+  } else if (view === "support") {
+    center = <SupportForm myProfile={myProfile} onBack={goPublic} language={language} />;
+  } else if (selectedRoom) {
+    center = (
+      <ChatWindow
+        key={selectedRoom.id}
+        room={selectedRoom}
+        myProfileId={myProfile.id}
+        myName={myProfile.display_name}
+        partnerName={partnerName}
+        language={language}
+        searchQuery={searchQuery}
+        onBack={goPublic}
+        onPartnerOffline={() => {}}
+        onUserBlocked={(blockedId) => {
+          setMyProfile((prev) => (prev ? { ...prev, blocked_users: [...(prev.blocked_users || []), blockedId] } : prev));
+          setProfiles((prev) => (prev || []).filter((p) => p?.id !== blockedId));
+          setSelectedRoom(null);
+        }}
+      />
     );
+  } else {
+    center = <PublicChat key={myProfile.id} profile={myProfile} language={language} isOnline={isOnline} searchQuery={searchQuery} />;
   }
-
-  if (view === "support") {
-    return (
-      <div
-        className={`min-h-screen ${
-          darkMode
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-            : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
-        } p-4`}
-      >
-        <div className="max-w-3xl mx-auto">
-          {mainHeader}
-          <Suspense fallback={null}>
-            <SupportForm myProfile={myProfile} onBack={() => setView("main")} language={language} />
-          </Suspense>
-        </div>
-      </div>
-    );
-  }
-
-  if (selectedRoom) {
-    const partnerId = selectedRoom?.participant_ids?.find((id) => id !== myProfile.id) || null;
-    const partnerName = selectedRoom?.participant_names?.find((_, idx) => selectedRoom.participant_ids?.[idx] === partnerId) || "";
-
-    return (
-      <div
-        className={`min-h-screen ${
-          darkMode
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-            : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
-        } p-4`}
-      >
-        <div className="max-w-5xl mx-auto">
-          {mainHeader}
-          <Suspense fallback={null}>
-            <ChatWindow
-              room={selectedRoom}
-              myProfileId={myProfile.id}
-              myName={myProfile.display_name}
-              partnerName={partnerName}
-              language={language}
-              onBack={() => setSelectedRoom(null)}
-              onPartnerOffline={() => {}}
-              onUserBlocked={(blockedId) => {
-                setMyProfile((prev) =>
-                  prev ? { ...prev, blocked_users: [...(prev.blocked_users || []), blockedId] } : prev
-                );
-                setProfiles((prev) => (prev || []).filter((p) => p?.id !== blockedId));
-                setSelectedRoom(null);
-              }}
-            />
-          </Suspense>
-        </div>
-        <InactivityMonitor isActive={Boolean(myProfile?.id)} onLogout={logoutGuest} onStayActive={() => markProfileOnline(myProfile.id)} />
-      </div>
-    );
-  }
-
-  if (selectedGroup) {
-    return (
-      <div
-        className={`min-h-screen ${
-          darkMode
-            ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-            : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
-        } p-4`}
-      >
-        <div className="max-w-5xl mx-auto">
-          {mainHeader}
-          <div className="h-[calc(100vh-170px)]">
-            <Suspense fallback={null}>
-              <GroupChat
-                group={selectedGroup}
-                myProfileId={myProfile.id}
-                myName={myProfile.display_name}
-                onBack={() => setSelectedGroup(null)}
-                language={language}
-              />
-            </Suspense>
-          </div>
-        </div>
-        <InactivityMonitor isActive={Boolean(myProfile?.id)} onLogout={logoutGuest} onStayActive={() => markProfileOnline(myProfile.id)} />
-      </div>
-    );
-  }
-
-  const presentProfiles = [myProfile, ...profiles.filter(isProfileOnline)];
-  const tabClass = `flex-1 justify-center gap-1.5 rounded-lg px-2 text-xs lg:w-full lg:flex-none lg:justify-start lg:px-3 lg:text-sm ${
-    darkMode ? "data-[state=active]:bg-violet-900/50 data-[state=active]:text-violet-300" : "data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700"
-  }`;
 
   return (
-    <div
-      className={`min-h-dvh ${
-        darkMode
-          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
-          : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
-      } p-4`}
-    >
-      <div className="mx-auto max-w-screen-2xl py-2 sm:px-4 sm:py-4">
-        {mainHeader}
-
-        {!isOnline && (
-          <div className={`mb-4 rounded-xl border px-3 py-2 text-xs ${darkMode ? "border-red-900/40 bg-red-900/20 text-red-300" : "border-red-200 bg-red-50 text-red-700"}`}>
-            {t("conn.offline", language)}  {t("conn.reconnecting", language)}
-          </div>
-        )}
-
-        {/* Tabs with content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="grid gap-3 lg:grid-cols-[12rem_minmax(0,1fr)_13rem]">
-          <TabsList aria-label={language === "sl" ? "Pogovori" : "Conversations"} className="h-auto w-full justify-start overflow-x-auto rounded-2xl border bg-card p-2 dark:border-gray-700 dark:bg-gray-800 lg:flex-col lg:items-stretch">
-            <TabsTrigger value="public" className={tabClass}>
-              <span aria-hidden="true">#</span>
-              {language === "sl" ? "Splošno" : "General"}
-            </TabsTrigger>
-            <TabsTrigger value="users" className={tabClass}>
-                <Users className="hidden size-4 sm:block" aria-hidden="true" />
-                {t("tabs.users", language)}
-              </TabsTrigger>
-            <TabsTrigger value="groups" className={tabClass}>
-                <MessagesSquare className="hidden size-4 sm:block" aria-hidden="true" />
-                {t("tabs.groups", language)}
-              </TabsTrigger>
-            <TabsTrigger value="history" className={tabClass}>
-                <History className="hidden size-4 sm:block" aria-hidden="true" />
-                {t("tabs.history", language)}
-              </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="public" className="mt-0 min-w-0">
-            <PublicChat key={myProfile.id} profile={myProfile} language={language} isOnline={isOnline} />
-          </TabsContent>
-
-          <TabsContent value="users" className="mt-0 min-w-0">
-            {profiles.length === 0 ? (
-              <div className={`text-center py-16 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
-                <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p className="text-sm">{t("users.none", language)}</p>
-                <p className="text-xs mt-1">{t("users.wait", language)}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {prioritizedProfiles.map((p) => (
-                  <UserCard
-                    key={p.id}
-                    profile={p}
-                    isOnline={isProfileOnline(p)}
-                    onStartChat={openOrCreateRoom}
-                    isCurrentUser={false}
-                    language={language}
-                    unreadCount={unreadByProfileId[p.id] || 0}
-                  />
-                ))}
+    <>
+      <ClassicWindow
+        subtitle={subtitle}
+        toolbar={
+          <>
+            <ToolButton icon={PanelLeft} label={sl ? "Drevo" : "Tree"} pressed={treeOpen} onClick={() => setTreeOpen((v) => !v)} />
+            <span className="k-sep" />
+            <ToolButton icon={HomeIcon} label={sl ? "Domov" : "Home"} onClick={goPublic} />
+            <ToolButton icon={MessageSquarePlus} label={sl ? "Nov pogovor" : "New chat"} onClick={() => setNewChatOpen(true)} />
+            <span className="k-sep" />
+            <ToolButton
+              icon={RefreshCw}
+              label={sl ? "Osveži" : "Refresh"}
+              onClick={() => {
+                void loadData();
+                toast.success(sl ? "Osveženo" : "Refreshed");
+              }}
+            />
+            {themeButton}
+            {languageSelect}
+            <span className="k-sep" />
+            <ToolButton icon={LifeBuoy} label={sl ? "Podpora" : "Support"} title={t("support.title", language)} onClick={() => setView("support")} />
+            <ToolButton icon={Settings} label={sl ? "Nastavitve" : "Settings"} title={t("settings.title", language)} onClick={() => setView("settings")} />
+            <span className="k-grow" />
+            {view === "main" && (
+              <label className="k-search">
+                <Search aria-hidden="true" />
+                <input type="search" placeholder={sl ? "Išči v sporočilih" : "Search messages"} aria-label={sl ? "Išči v sporočilih" : "Search messages"} value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+              </label>
+            )}
+            <ToolButton icon={LogOut} danger label={t("header.logout", language)} onClick={() => void logoutGuest()} />
+          </>
+        }
+        status={
+          <>
+            <span><span className={`k-dot${isOnline ? "" : " k-away"}`} />{isOnline ? (sl ? "Povezano" : "Connected") : t("conn.reconnecting", language)}</span>
+            <span>{t("header.loggedAs", language)} <b>{myProfile.display_name}</b></span>
+            <span className="k-opt">{onlineProfiles.length + 1} {sl ? "prisotnih" : "online"}</span>
+          </>
+        }
+      >
+        <div className={`k-body${treeOpen ? "" : " k-notree"}`}>
+          <TreeNav sl={sl} selected={treeSelected} conversations={conversations} onSelect={onTreeSelect} />
+          <section className="k-center" aria-label={subtitle}>
+            {!isOnline && (
+              <div className="k-offline" role="status">
+                <b>{t("conn.offline", language)}</b>
+                <span>{t("conn.reconnecting", language)}</span>
               </div>
             )}
-          </TabsContent>
+            <Suspense fallback={<div className="k-empty-msg">{t("register.loading", language)}</div>}>{center}</Suspense>
+          </section>
+          <PresenceList
+            sl={sl}
+            people={peopleHere}
+            myId={myProfile.id}
+            selectedId={profileDialog?.id || null}
+            onPick={(p) => setProfileDialog(p)}
+            onOpenChat={startChat}
+          />
+        </div>
+      </ClassicWindow>
 
-          <TabsContent value="groups" className="mt-0 min-w-0">
-            <Suspense fallback={null}>
-              <GroupList
-                groups={groups}
-                myProfile={myProfile}
-                onlineUsers={(profiles || []).filter(isProfileOnline)}
-                unreadByGroupId={unreadByGroupId}
-                onCreateGroup={onCreateGroup}
-                onJoinGroup={onJoinGroup}
-                onOpenGroup={onOpenGroup}
-                onDeleteGroup={onDeleteGroup}
-                language={language}
-              />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-0 min-w-0">
-            <Suspense fallback={null}>
-              <ChatHistory rooms={rooms} myProfileId={myProfile.id} onOpenRoom={onOpenRoomFromHistory} language={language} />
-            </Suspense>
-          </TabsContent>
-
-          <aside className="hidden min-w-0 rounded-2xl border bg-card text-card-foreground dark:border-gray-700 dark:bg-gray-800 lg:col-start-3 lg:row-start-1 lg:block">
-            <h2 className="flex items-center justify-between gap-2 border-b px-4 py-3 font-semibold">
-              {language === "sl" ? "Prisotni" : "Online"}
-              <span className="rounded-lg bg-violet-500/15 px-2 py-0.5 text-sm tabular-nums">{presentProfiles.length}</span>
-            </h2>
-            <ul className="max-h-[max(18rem,calc(100dvh-16rem))] space-y-1 overflow-y-auto p-2">
-              {presentProfiles.map((profile) => (
-                <li key={profile.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5">
-                  <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-green-500" />
-                  {profile.id === myProfile.id ? (
-                    <span className="truncate text-sm">{profile.display_name}</span>
-                  ) : (
-                    <button type="button" onClick={() => void openOrCreateRoom(profile)} className="min-w-0 truncate rounded text-left text-sm hover:text-violet-600 focus-visible:outline focus-visible:outline-violet-500 dark:hover:text-violet-300">
-                      {profile.display_name}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </aside>
-        </Tabs>
-      </div>
-
+      {profileDialog && (
+        <ProfileDialog
+          key={profileDialog.id}
+          sl={sl}
+          profile={visibleProfiles.find((p) => p.id === profileDialog.id) || profileDialog}
+          online={isProfileOnline(visibleProfiles.find((p) => p.id === profileDialog.id) || profileDialog)}
+          onClose={() => setProfileDialog(null)}
+          onChat={startChat}
+        />
+      )}
+      <NewChatDialog
+        sl={sl}
+        open={newChatOpen}
+        onOpenChange={setNewChatOpen}
+        people={visibleProfiles.map((p) => ({ profile: p, online: isProfileOnline(p) }))}
+        onPick={startChat}
+      />
       <InactivityMonitor isActive={Boolean(myProfile?.id)} onLogout={logoutGuest} onStayActive={() => markProfileOnline(myProfile.id)} />
-    </div>
+    </>
   );
 }
-
-
-
-
-

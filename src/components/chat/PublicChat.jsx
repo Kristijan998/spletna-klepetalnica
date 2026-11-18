@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { db } from "@/api/db";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 
 export const PUBLIC_CHAT_ID = "7260ad85-0bac-495e-a78a-03268e7b5840";
+// Javni kanal hrani in prikazuje največ zadnjih 300 vrstic; starejše se sproti brišejo.
+export const PUBLIC_CHAT_LIMIT = 300;
 
 async function ensurePublicGroup() {
   const groups = db.entities.ChatGroup;
@@ -17,7 +17,17 @@ async function ensurePublicGroup() {
   }
 }
 
-export default function PublicChat({ profile, language, isOnline }) {
+async function prunePublicChat() {
+  try {
+    const all = await db.entities.GroupMessage.filter({ group_id: PUBLIC_CHAT_ID }, "-created_date", PUBLIC_CHAT_LIMIT + 200);
+    const extra = (all || []).slice(PUBLIC_CHAT_LIMIT);
+    await Promise.all(extra.map((m) => db.entities.GroupMessage.delete(m.id).catch(() => {})));
+  } catch {
+    // Brisanje starih vrstic ni kritično; poskusi ob naslednjem pošiljanju.
+  }
+}
+
+export default function PublicChat({ profile, language, isOnline, searchQuery = "" }) {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(true);
@@ -36,7 +46,7 @@ export default function PublicChat({ profile, language, isOnline }) {
     async function refresh() {
       const startedAt = revision.current;
       try {
-        const latest = await db.entities.GroupMessage.filter({ group_id: PUBLIC_CHAT_ID }, "-created_date", 100);
+        const latest = await db.entities.GroupMessage.filter({ group_id: PUBLIC_CHAT_ID }, "-created_date", PUBLIC_CHAT_LIMIT);
         if (stopped) return;
         if (startedAt === revision.current) setMessages(latest.reverse());
         setLoadFailed(false);
@@ -77,8 +87,9 @@ export default function PublicChat({ profile, language, isOnline }) {
       });
       revision.current += 1;
       follow.current = true;
-      setMessages((current) => [...current.filter((item) => item.id !== message.id), message].slice(-100));
+      setMessages((current) => [...current.filter((item) => item.id !== message.id), message].slice(-PUBLIC_CHAT_LIMIT));
       setDraft("");
+      void prunePublicChat();
     } catch {
       setSendFailed(true);
     } finally {
@@ -87,13 +98,17 @@ export default function PublicChat({ profile, language, isOnline }) {
     }
   }
 
-  const visibleMessages = messages.filter((item) => !profile.blocked_users?.includes(item.sender_profile_id));
+  const q = searchQuery.trim().toLocaleLowerCase("sl");
+  const visibleMessages = messages
+    .filter((item) => !profile.blocked_users?.includes(item.sender_profile_id))
+    .filter((item) => !q || String(item.content || "").toLocaleLowerCase("sl").includes(q) || String(item.sender_name || "").toLocaleLowerCase("sl").includes(q));
 
   return (
-    <section aria-labelledby="public-chat-title" className="flex h-[max(25rem,calc(100dvh-12rem))] min-w-0 flex-col overflow-hidden rounded-2xl border bg-card text-card-foreground dark:border-gray-700 dark:bg-gray-800">
-      <header className="border-b px-4 py-3">
-        <h2 id="public-chat-title" className="text-lg font-semibold"># {sl ? "Splošno" : "General"}</h2>
-      </header>
+    <>
+      <div className="k-phead">
+        <b>{sl ? "# Splošno" : "# General"}</b>
+        <span className="k-meta">· {sl ? "javni kanal" : "public channel"} · {visibleMessages.length} {sl ? "sporočil" : "messages"}{q ? ` (${sl ? "filter" : "filter"} »${searchQuery.trim()}«)` : ""}</span>
+      </div>
       <div
         ref={log}
         onScroll={(event) => {
@@ -102,40 +117,38 @@ export default function PublicChat({ profile, language, isOnline }) {
         }}
         role="log"
         aria-label={sl ? "Sporočila" : "Messages"}
-        className="flex-1 space-y-2 overflow-y-auto p-4 text-sm"
+        className="k-log chat-scroll"
       >
-        {loading && <p className="text-muted-foreground">{sl ? "Nalagam sporočila …" : "Loading messages …"}</p>}
-        {loadFailed && <p role="status" className="text-muted-foreground">{sl ? "Sporočil ni bilo mogoče naložiti. Poskušam znova …" : "Could not load messages. Retrying …"}</p>}
+        {loading && <p className="k-empty-msg">{sl ? "Nalagam sporočila …" : "Loading messages …"}</p>}
+        {loadFailed && <p role="status" className="k-empty-msg">{sl ? "Sporočil ni bilo mogoče naložiti. Poskušam znova …" : "Could not load messages. Retrying …"}</p>}
         {!loading && !loadFailed && visibleMessages.length === 0 && (
-          <p className="text-muted-foreground">{sl ? "Napiši prvo sporočilo." : "Send the first message."}</p>
+          <p className="k-empty-msg">{q ? (sl ? "Ni zadetkov." : "No matches.") : sl ? "Napiši prvo sporočilo." : "Send the first message."}</p>
         )}
         {visibleMessages.map((message) => (
-          <div key={message.id} className="grid grid-cols-[3rem_minmax(0,1fr)] items-baseline gap-x-2 sm:grid-cols-[3rem_minmax(5rem,8rem)_minmax(0,1fr)]">
-            <time dateTime={message.created_date} className="text-xs tabular-nums text-muted-foreground">
+          <div key={message.id} className={`k-msg${message.sender_profile_id === profile.id ? " k-me" : ""}`}>
+            <time dateTime={message.created_date} className="k-t">
               {new Date(message.created_date).toLocaleTimeString(sl ? "sl-SI" : "en-GB", { hour: "2-digit", minute: "2-digit" })}
             </time>
-            <span className="break-all font-semibold text-violet-700 dark:text-violet-300">{message.sender_name}</span>
-            <p className="col-start-2 whitespace-pre-wrap break-words sm:col-start-3">{message.content}</p>
+            <span className="k-n" title={message.sender_name}>{message.sender_name}</span>
+            <p className="k-m" style={{ margin: 0 }}>{message.content}</p>
           </div>
         ))}
       </div>
-      <form onSubmit={send} className="border-t p-3">
-        {sendFailed && <p role="alert" className="mb-2 text-sm text-red-600 dark:text-red-400">{sl ? "Pošiljanje ni uspelo. Poskusi znova." : "Could not send the message. Try again."}</p>}
-        <div className="flex gap-2">
-          <Input
-            aria-label={sl ? "Sporočilo" : "Message"}
-            placeholder={sl ? "Napiši sporočilo …" : "Write a message …"}
-            className="h-10 min-w-0 bg-background text-base dark:bg-gray-900 sm:text-sm"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            readOnly={sending}
-            maxLength={2000}
-          />
-          <Button type="submit" disabled={!draft.trim() || sending || !isOnline} className="h-10 bg-violet-700 text-white hover:bg-violet-800">
-            {sl ? "Pošlji" : "Send"}
-          </Button>
-        </div>
+      <form onSubmit={send} className={`k-compose${sendFailed ? " k-tall" : ""}`}>
+        {sendFailed && <p role="alert" className="k-err" style={{ width: "100%", margin: 0 }}>{sl ? "Pošiljanje ni uspelo. Poskusi znova." : "Could not send the message. Try again."}</p>}
+        <input
+          aria-label={sl ? "Sporočilo" : "Message"}
+          placeholder={sl ? "Napiši sporočilo … (Enter pošlje)" : "Write a message … (Enter sends)"}
+          className="k-inp"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          readOnly={sending}
+          maxLength={2000}
+        />
+        <button type="submit" className="k-btn k-pri" disabled={!draft.trim() || sending || !isOnline}>
+          {sl ? "Pošlji" : "Send"}
+        </button>
       </form>
-    </section>
+    </>
   );
 }

@@ -1,25 +1,13 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { db } from "@/api/db";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { motion, AnimatePresence } from "framer-motion";
-import { Send, ArrowLeft, Circle, Paperclip, Camera, Smile, X, Download, Image as ImageIcon, Check, CheckCheck, Loader2, MoreVertical, AlertTriangle, Ban } from "lucide-react";
+import { Paperclip, Camera, Smile, Download, Image as ImageIcon, Loader2, Ban, Flag, User } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { Avatar, ClassicDialog, ProfileDialog, getAge } from "@/components/chat/ClassicLayout";
 
-export default function ChatWindow({ room, myProfileId, myName, partnerName, onBack, onPartnerOffline, onUserBlocked, language = "sl" }) {
+// eslint-disable-next-line no-unused-vars
+export default function ChatWindow({ room, myProfileId, myName, partnerName, onBack, onPartnerOffline, onUserBlocked, language = "sl", searchQuery = "" }) {
   const darkMode = document.documentElement.classList.contains("dark");
-  const currentYear = new Date().getFullYear();
-  const getAge = (birthYear) => {
-    const year = Number(birthYear);
-    if (!Number.isFinite(year)) return null;
-    if (year < 1900 || year > currentYear) return null;
-    return currentYear - year;
-  };
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -610,465 +598,200 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
     }, 3000);
   };
 
+  const q = String(searchQuery || "").trim().toLocaleLowerCase("sl");
+  const shownMessages = q
+    ? messages.filter((m) => String(m.content || "").toLocaleLowerCase("sl").includes(q) || String(m.file_name || "").toLocaleLowerCase("sl").includes(q))
+    : messages;
+  const age = partnerProfile ? getAge(partnerProfile.birth_year) : null;
+  const place = partnerProfile ? [partnerProfile.city, partnerProfile.country].filter(Boolean).join(", ") : "";
+  const lang = language === "en" ? "en-GB" : "sl-SI";
+
   return (
-    <div className={`flex flex-col h-full w-full sm:h-[600px] ${darkMode ? "bg-gray-800/50 border-gray-700" : "bg-gray-50/50 border-gray-100"} rounded-3xl border overflow-hidden`}>
-      {/* Header */}
-      <div className={`flex items-center justify-between px-5 py-4 ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-100"} border-b`}>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            aria-label={t("Nazaj", "Back")}
-            className="rounded-xl h-9 w-9"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={openPartnerProfileGallery}
-              aria-label={t("Ogled profila", "View profile")}
-              className="relative rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/50"
-              title={t("Ogled profila", "View profile")}
-            >
-              {partnerProfile?.avatar_url ? (
-                <img
-                  src={partnerProfile.avatar_url}
-                  alt={partnerName || "Partner"}
-                  className="w-9 h-9 rounded-xl object-cover"
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                  {partnerName?.[0]?.toUpperCase() || "?"}
-                </div>
-              )}
-              {partnerImages.length > 1 && (
-                <span className="absolute -bottom-1 -right-1 rounded-full bg-violet-600 text-white text-[10px] px-1.5 py-0.5 leading-none">
-                  {partnerImages.length}
-                </span>
-              )}
-            </button>
-            <div>
-              <h3 className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"} text-sm`}>{partnerName}</h3>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Circle className={`w-2 h-2 ${partnerOnline ? "fill-green-400 text-green-400" : "fill-gray-400 text-gray-400"}`} />
-                <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  {partnerOnline ? "Na voljo" : "Offline"}
-                </span>
-                {partnerProfile && (
-                  <>
-                    <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>•</span>
-                    {getAge(partnerProfile.birth_year) !== null && (
-                      <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                        {getAge(partnerProfile.birth_year)} let
-                      </span>
-                    )}
-                    {partnerProfile.country && (
-                      <>
-                        <span className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-400"}`}>•</span>
-                        <span className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                          {partnerProfile.city ? `${partnerProfile.city}, ${partnerProfile.country}` : partnerProfile.country}
-                        </span>
-                      </>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={t("Več možnosti", "More options")} className="rounded-xl h-9 w-9">
-              <MoreVertical className="w-4 h-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className={darkMode ? "bg-gray-800 border-gray-700" : "bg-white"}>
-            <DropdownMenuItem onClick={() => setShowReport(true)}>
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              {t("Prijavi", "Report")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setShowBlock(true)} className="text-red-600 focus:text-red-600">
-              <Ban className="w-4 h-4 mr-2" />
-              {t("Blokiraj", "Block")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+    <>
+      {/* Glava pogovora */}
+      <div className="k-phead">
+        <button type="button" onClick={openPartnerProfileGallery} className="k-avatar-sm" aria-label={t("Ogled profila", "View profile")} title={t("Ogled profila", "View profile")} style={{ background: "transparent" }}>
+          <Avatar profile={partnerProfile || { display_name: partnerName }} className="k-avatar-sm" />
+        </button>
+        <span className={`k-dot${partnerOnline ? "" : " k-away"}`} aria-hidden="true" />
+        <b>{partnerName}</b>
+        <span className="k-meta">
+          · {partnerOnline ? t("Na voljo", "Available") : t("Ni na voljo", "Offline")}
+          {age !== null && ` · ${age} ${t("let", "y")}`}
+          {place && ` · ${place}`}
+        </span>
+        <span className="k-acts">
+          <button type="button" className="k-tb" onClick={openPartnerProfileGallery} aria-label={t("Profil", "Profile")}>
+            <User aria-hidden="true" /><span className="k-lbl-hide">{t("Profil", "Profile")}</span>
+          </button>
+          <button type="button" className="k-tb" onClick={() => setShowReport(true)} aria-label={t("Prijavi", "Report")}>
+            <Flag aria-hidden="true" /><span className="k-lbl-hide">{t("Prijavi", "Report")}</span>
+          </button>
+          <button type="button" className="k-tb k-danger" onClick={() => setShowBlock(true)} aria-label={t("Blokiraj", "Block")}>
+            <Ban aria-hidden="true" /><span className="k-lbl-hide">{t("Blokiraj", "Block")}</span>
+          </button>
+        </span>
       </div>
 
-      {/* Messages */}
-      <div className="chat-scroll flex-1 overflow-y-auto px-5 py-4 space-y-3">
-        {messages.length === 0 && (
-          <div className={`text-center ${darkMode ? "text-gray-500" : "text-gray-400"} text-sm py-12`}>
-            <p>Začni pogovor z {partnerName}! 💬</p>
-          </div>
+      {/* Sporočila */}
+      <div className="k-log chat-scroll" role="log" aria-label={t("Sporočila", "Messages")}>
+        {shownMessages.length === 0 && (
+          <p className="k-empty-msg">{q ? t("Ni zadetkov.", "No matches.") : `${t("Začni pogovor z", "Start a chat with")} ${partnerName}.`}</p>
         )}
-
-        <AnimatePresence initial={false}>
-          {messages.map((msg) => {
-            const isMe = msg.sender_profile_id === myProfileId;
-            return (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                    isMe
-                      ? "bg-gradient-to-r from-violet-600 to-indigo-600 text-white rounded-br-md"
-                      : darkMode
-                      ? "bg-gray-800 border border-gray-700 text-gray-200 rounded-bl-md shadow-sm"
-                      : "bg-white border border-gray-100 text-gray-800 rounded-bl-md shadow-sm"
-                  }`}
-                >
-                  {!isMe && (
-                    <p className="text-xs font-medium text-violet-500 mb-1">{msg.sender_name}</p>
-                  )}
-                  {msg.content && <p className="break-words">{msg.content}</p>}
-                  {msg.image_url && (
-                    <img
-                      src={msg.image_url}
-                      alt="Slika"
-                      className="mt-2 rounded-lg max-w-full h-auto max-h-64 object-cover cursor-pointer"
-                      onClick={() => setPreviewImageUrl(msg.image_url)}
-                    />
-                  )}
-                  {msg.file_url && (
-                    <a
-                      href={msg.file_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`flex items-center gap-2 mt-2 p-2 rounded-lg ${isMe ? "bg-white/10" : darkMode ? "bg-gray-700" : "bg-gray-50"}`}
-                    >
-                      <Paperclip className="w-4 h-4" />
-                      <span className="text-xs truncate">{msg.file_name || "Datoteka"}</span>
-                      <Download className="w-3 h-3 ml-auto" />
-                    </a>
-                  )}
-                  <div className={`text-[10px] mt-1 ${isMe ? "text-white/60" : "text-gray-400"} flex items-center gap-2`}>
-                    <span>{new Date(msg.created_date).toLocaleTimeString("sl-SI", { hour: "2-digit", minute: "2-digit" })}</span>
-                    {isMe && (
-                      <span className="flex items-center gap-1">
-                        {partnerProfileId && normalizeReadBy(msg.read_by).includes(partnerProfileId) ? (
-                          <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
-                        ) : (
-                          <Check className="w-3.5 h-3.5 opacity-50" />
-                        )}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-        
-        {/* Typing Indicator */}
-        {partnerIsTyping && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className={`flex justify-start`}
-          >
-            <div className={`px-4 py-3 rounded-2xl rounded-bl-md ${darkMode ? "bg-gray-800 border border-gray-700" : "bg-white border border-gray-100"}`}>
-              <div className="flex items-center gap-1.5">
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="w-2 h-2 rounded-full bg-gray-400"
-                />
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.2 }}
-                  className="w-2 h-2 rounded-full bg-gray-400"
-                />
-                <motion.div
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{ duration: 1.5, repeat: Infinity, delay: 0.4 }}
-                  className="w-2 h-2 rounded-full bg-gray-400"
-                />
+        {shownMessages.map((msg) => {
+          const isMe = msg.sender_profile_id === myProfileId;
+          const read = isMe && partnerProfileId && normalizeReadBy(msg.read_by).includes(partnerProfileId);
+          return (
+            <div key={msg.id} className={`k-msg${isMe ? " k-me" : ""}`}>
+              <time className="k-t" dateTime={msg.created_date}>
+                {new Date(msg.created_date).toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit" })}
+              </time>
+              <span className="k-n" title={msg.sender_name}>{isMe ? myName : msg.sender_name || partnerName}</span>
+              <div className="k-m">
+                {msg.content}
+                {msg.image_url && (
+                  <button type="button" onClick={() => setPreviewImageUrl(msg.image_url)} style={{ display: "block", padding: 0, border: 0, background: "none" }} aria-label={t("Povečaj sliko", "Enlarge image")}>
+                    <img src={msg.image_url} alt={t("Slika", "Image")} className="k-att-img" />
+                  </button>
+                )}
+                {msg.file_url && (
+                  <a href={msg.file_url} target="_blank" rel="noopener noreferrer" className="k-att">
+                    <Paperclip className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span className="k-ell">{msg.file_name || t("Datoteka", "File")}</span>
+                    <Download className="w-3 h-3" aria-hidden="true" />
+                  </a>
+                )}
+                {isMe && <span className={`k-read${read ? " k-yes" : ""}`} title={read ? t("Prebrano", "Read") : t("Poslano", "Sent")}>{read ? "✓✓" : "✓"}</span>}
               </div>
             </div>
-          </motion.div>
-        )}
-        
+          );
+        })}
+        {partnerIsTyping && <div className="k-typing">{partnerName} {t("piše …", "is typing …")}</div>}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Camera View */}
+      {/* Kamera */}
       {cameraMode && (
-        <div className="absolute inset-0 bg-black z-50 flex flex-col">
-          <div className="flex items-center justify-between p-4 bg-black/50">
-            <Button variant="ghost" size="icon" onClick={stopCamera} aria-label={t("Zapri kamero", "Close camera")} className="text-white">
-              <X className="w-5 h-5" />
-            </Button>
-            <span className="text-white text-sm">{cameraMode === "user" ? "Sprednja kamera" : "Zadnja kamera"}</span>
-            <div className="w-10" />
+        <div style={{ position: "fixed", inset: 0, background: "#000", zIndex: 60, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 12, color: "#fff" }}>
+            <button type="button" className="k-btn" onClick={stopCamera}>{t("Zapri", "Close")}</button>
+            <span>{cameraMode === "user" ? t("Sprednja kamera", "Front camera") : t("Zadnja kamera", "Back camera")}</span>
+            <span style={{ width: 60 }} />
           </div>
-          <video ref={videoRef} className="flex-1 object-cover" />
+          <video ref={videoRef} style={{ flex: 1, objectFit: "cover", minHeight: 0 }} />
           <canvas ref={canvasRef} className="hidden" />
-          <div className="p-6 bg-black/50 flex justify-center">
-            <Button
-              onClick={capturePhoto}
-              size="icon"
-              aria-label={t("Zajemi fotografijo", "Take photo")}
-              className="h-16 w-16 rounded-full bg-white hover:bg-gray-200"
-            >
-              <Camera className="w-6 h-6 text-gray-900" />
-            </Button>
+          <div style={{ padding: 20, display: "flex", justifyContent: "center" }}>
+            <button type="button" className="k-btn k-pri" onClick={capturePhoto} aria-label={t("Zajemi fotografijo", "Take photo")}>
+              <Camera className="w-5 h-5" aria-hidden="true" /> {t("Zajemi", "Capture")}
+            </button>
           </div>
         </div>
       )}
 
-      {/* Input */}
-      <form onSubmit={handleSend} className={`px-4 py-3 ${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-100"} border-t`}>
+      {/* Vnos */}
+      <form onSubmit={handleSend} className={`k-compose${attachedFile || attachedImage || (sending && uploadStatus) ? " k-tall" : ""}`}>
         {(attachedFile || attachedImage) && (
-          <div className="mb-2 flex items-center gap-2 p-2 bg-violet-50 rounded-lg">
-            {attachedImage ? (
-              <>
-                <ImageIcon className="w-4 h-4 text-violet-600" />
-                <span className="text-xs text-violet-900 flex-1 truncate">
-                  {attachedImage.name}
-                </span>
-              </>
-            ) : (
-              <>
-                <Paperclip className="w-4 h-4 text-violet-600" />
-                <span className="text-xs text-violet-900 flex-1 truncate">
-                  {attachedFile?.name}
-                </span>
-              </>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              aria-label={t("Odstrani priponko", "Remove attachment")}
-              onClick={() => {
-                setAttachedFile(null);
-                setAttachedImage(null);
-              }}
-            >
-              <X className="w-3 h-3" />
-            </Button>
+          <div className="k-attached">
+            {attachedImage ? <ImageIcon className="w-4 h-4" aria-hidden="true" /> : <Paperclip className="w-4 h-4" aria-hidden="true" />}
+            <span>{attachedImage ? attachedImage.name : attachedFile?.name}</span>
+            <button type="button" className="k-ed" aria-label={t("Odstrani priponko", "Remove attachment")} onClick={() => { setAttachedFile(null); setAttachedImage(null); }}>✕</button>
           </div>
         )}
-
         {sending && uploadStatus && (
-          <div className={`mb-2 rounded-lg px-3 py-2 border ${darkMode ? "bg-gray-800 border-gray-700" : "bg-violet-50 border-violet-100"}`}>
-            <div className="flex items-center gap-2">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-500" />
-              <span className={`text-xs font-medium ${darkMode ? "text-gray-200" : "text-violet-900"} truncate`}>
-                {t("Nalaganje datoteke...", "Uploading file...")} {uploadStatus.fileName}
-              </span>
-            </div>
-            <p className={`text-[11px] mt-1 ${darkMode ? "text-gray-400" : "text-violet-700"}`}>
-              {t("Preostali cas (ocena):", "Estimated time left:")} {Math.max(0, uploadStatus.estimatedTotalSec - uploadStatus.elapsedSec)}s
-            </p>
+          <div className="k-attached" role="status">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+            <span>
+              {t("Nalaganje datoteke …", "Uploading file …")} {uploadStatus.fileName} · {t("še približno", "about")} {Math.max(0, uploadStatus.estimatedTotalSec - uploadStatus.elapsedSec)} s
+            </span>
           </div>
         )}
-        
-        <div className="flex items-center gap-2">
-          <input
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            onChange={handleFileSelect}
-            accept="image/*,video/*"
-          />
-          
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-            aria-label={t("Dodaj datoteko", "Attach file")}
-            className="h-9 w-9 rounded-xl"
-          >
-            <Paperclip className="w-4 h-4" />
-          </Button>
-
-          <div className="relative">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => startCamera("environment")}
-            aria-label={t("Odpri kamero", "Open camera")}
-            className="h-9 w-9 rounded-xl"
-          >
-            <Camera className="w-4 h-4" />
-            </Button>
+        <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} accept="image/*,video/*" />
+        <button type="button" className="k-ib" onClick={() => fileInputRef.current?.click()} aria-label={t("Dodaj datoteko", "Attach file")} title={t("Dodaj datoteko", "Attach file")}>
+          <Paperclip aria-hidden="true" />
+        </button>
+        <button type="button" className="k-ib" onClick={() => startCamera("environment")} aria-label={t("Odpri kamero", "Open camera")} title={t("Odpri kamero", "Open camera")}>
+          <Camera aria-hidden="true" />
+        </button>
+        <button type="button" className="k-ib" onClick={() => setShowEmojiPicker(!showEmojiPicker)} aria-label={t("Odpri emoji", "Open emoji picker")} aria-expanded={showEmojiPicker} title="Emoji">
+          <Smile aria-hidden="true" />
+        </button>
+        {showEmojiPicker && (
+          <div className="k-emoji-pop">
+            <EmojiPicker onEmojiClick={onEmojiClick} width={300} height={380} theme={darkMode ? "dark" : "light"} />
           </div>
-
-          <div className="relative">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            aria-label={t("Odpri emoji", "Open emoji picker")}
-            className="h-9 w-9 rounded-xl"
-          >
-            <Smile className="w-4 h-4" />
-            </Button>
-            {showEmojiPicker && (
-              <div className="absolute bottom-12 left-0 z-50">
-                <EmojiPicker onEmojiClick={onEmojiClick} width={300} height={400} />
-              </div>
-            )}
-          </div>
-
-          <Input
-            ref={inputRef}
-            value={newMessage}
-            onChange={handleTyping}
-            placeholder="Napiši sporočilo..."
-            className="flex-1 h-11 rounded-xl border-gray-200 focus:border-violet-400 focus:ring-violet-400/20"
-            maxLength={500}
-            autoFocus
-          />
-          <Button
-            type="submit"
-            disabled={(!newMessage.trim() && !attachedFile && !attachedImage) || sending}
-            size="icon"
-            aria-label={t("Pošlji sporočilo", "Send message")}
-            className="h-11 w-11 rounded-xl bg-violet-600 text-white hover:bg-violet-700 focus:ring-2 focus:ring-violet-400"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
+        )}
+        <input
+          ref={inputRef}
+          value={newMessage}
+          onChange={handleTyping}
+          placeholder={t("Napiši sporočilo … (Enter pošlje)", "Write a message … (Enter sends)")}
+          aria-label={t("Sporočilo", "Message")}
+          className="k-inp"
+          maxLength={500}
+          autoFocus
+        />
+        <button type="submit" className="k-btn k-pri" disabled={(!newMessage.trim() && !attachedFile && !attachedImage) || sending}>
+          {t("Pošlji", "Send")}
+        </button>
       </form>
 
-      <Dialog
-        open={Boolean(previewImageUrl)}
-        onOpenChange={(open) => {
-          if (!open) setPreviewImageUrl(null);
-        }}
+      {/* Povečana slika */}
+      <ClassicDialog open={Boolean(previewImageUrl)} onOpenChange={(open) => !open && setPreviewImageUrl(null)} title={t("Slika", "Image")} wide>
+        {previewImageUrl && <img src={previewImageUrl} alt={t("Povečana slika", "Enlarged image")} className="k-photo" style={{ maxHeight: "75vh" }} />}
+      </ClassicDialog>
+
+      {/* Profil sogovornika */}
+      {showProfileModal && partnerProfile && (
+        <ProfileDialog
+          sl={language !== "en"}
+          profile={partnerProfile}
+          online={partnerOnline}
+          onClose={() => setShowProfileModal(false)}
+          onChat={() => setShowProfileModal(false)}
+        />
+      )}
+
+      {/* Prijava */}
+      <ClassicDialog
+        open={showReport}
+        onOpenChange={setShowReport}
+        title={`${t("Prijava uporabnika", "Report user")} ${partnerName}`}
+        footer={
+          <>
+            <button type="button" className="k-btn" onClick={() => setShowReport(false)}>{t("Prekliči", "Cancel")}</button>
+            <button type="button" className="k-btn k-pri" onClick={handleReportUser} disabled={!reportReason.trim() || actionSending}>
+              {actionSending ? t("Pošiljam …", "Sending …") : t("Pošlji prijavo", "Send report")}
+            </button>
+          </>
+        }
       >
-        <DialogContent className={`${darkMode ? "bg-gray-900 border-gray-700" : "bg-white"} max-w-4xl p-2`}>
-          {previewImageUrl && (
-            <img
-              src={previewImageUrl}
-              alt="Povečana slika"
-              className="w-full h-auto max-h-[80vh] object-contain rounded"
-            />
+        <div className="k-field">
+          <label htmlFor="report-reason">{t("Razlog prijave", "Reason for report")}</label>
+          <textarea id="report-reason" className="k-inp" value={reportReason} onChange={(e) => setReportReason(e.target.value)} placeholder={t("Opiši problem …", "Describe the issue …")} rows={4} maxLength={500} />
+        </div>
+      </ClassicDialog>
+
+      {/* Blokiranje */}
+      <ClassicDialog
+        open={showBlock}
+        onOpenChange={setShowBlock}
+        title={`${t("Blokiraj uporabnika?", "Block user?")} ${partnerName}`}
+        footer={
+          <>
+            <button type="button" className="k-btn" onClick={() => setShowBlock(false)}>{t("Prekliči", "Cancel")}</button>
+            <button type="button" className="k-btn k-red" onClick={handleBlockUser} disabled={actionSending}>
+              {actionSending ? t("Blokiram …", "Blocking …") : t("Blokiraj", "Block")}
+            </button>
+          </>
+        }
+      >
+        <p style={{ margin: 0 }}>
+          {t(
+            "Blokiran uporabnik te ne bo mogel kontaktirati in ga ne boš več videl na seznamu.",
+            "Blocked user won't be able to contact you and you won't see them in the list anymore."
           )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-        <DialogContent className={`${darkMode ? "bg-gray-900 border-gray-700" : "bg-white border-gray-200"} max-w-lg`}>
-          <DialogHeader>
-            <DialogTitle className={darkMode ? "text-white" : "text-gray-900"}>
-              {partnerName || t("Profil", "Profile")}
-            </DialogTitle>
-          </DialogHeader>
-
-          {partnerImages.length > 0 ? (
-            <div className="space-y-3">
-              <img
-                src={partnerImages[selectedImageIndex]}
-                alt={`${partnerName || "Partner"} ${selectedImageIndex + 1}`}
-                className="w-full max-h-[50vh] object-cover rounded-xl"
-              />
-
-              {partnerImages.length > 1 && (
-                <div className="grid grid-cols-5 gap-2">
-                  {partnerImages.map((img, idx) => (
-                    <button
-                      key={`${img}-${idx}`}
-                      type="button"
-                      onClick={() => setSelectedImageIndex(idx)}
-                      aria-label={t(`Prikaži sliko ${idx + 1}`, `Show image ${idx + 1}`)}
-                      className={`rounded-lg overflow-hidden border ${
-                        idx === selectedImageIndex
-                          ? "border-violet-500"
-                          : darkMode
-                            ? "border-gray-700"
-                            : "border-gray-200"
-                      }`}
-                    >
-                      <img src={img} alt={`${partnerName || "Partner"} thumb ${idx + 1}`} className="w-full h-12 object-cover" />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-              {t("Uporabnik nima dodanih slik.", "This user has no uploaded photos.")}
-            </p>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showReport} onOpenChange={setShowReport}>
-        <DialogContent className={darkMode ? "bg-gray-800 border-gray-700" : "bg-white"}>
-          <DialogHeader>
-            <DialogTitle className={darkMode ? "text-white" : "text-gray-900"}>
-              {t("Prijavi uporabnika", "Report user")} {partnerName}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <div>
-              <Label className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
-                {t("Razlog prijave", "Reason for report")}
-              </Label>
-              <Textarea
-                value={reportReason}
-                onChange={(e) => setReportReason(e.target.value)}
-                placeholder={t("Opisi problem...", "Describe the issue...")}
-                className={`mt-2 ${darkMode ? "bg-gray-900 border-gray-600 text-white" : ""}`}
-                rows={4}
-                maxLength={500}
-              />
-            </div>
-            <Button
-              onClick={handleReportUser}
-              disabled={!reportReason.trim() || actionSending}
-              className="w-full bg-red-600 hover:bg-red-700"
-            >
-              {actionSending ? t("Posiljam...", "Sending...") : t("Poslji prijavo", "Send report")}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showBlock} onOpenChange={setShowBlock}>
-        <DialogContent className={darkMode ? "bg-gray-800 border-gray-700" : "bg-white"}>
-          <DialogHeader>
-            <DialogTitle className={darkMode ? "text-white" : "text-gray-900"}>
-              {t("Blokiraj uporabnika?", "Block user?")} {partnerName}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-              {t(
-                "Blokiran uporabnik te ne bo mogel kontaktirati in ga ne bos vec videl na seznamu.",
-                "Blocked user won't be able to contact you and you won't see them in the list anymore."
-              )}
-            </p>
-            <div className="flex gap-2">
-              <Button onClick={() => setShowBlock(false)} variant="outline" className="flex-1">
-                {t("Preklici", "Cancel")}
-              </Button>
-              <Button
-                onClick={handleBlockUser}
-                disabled={actionSending}
-                className="flex-1 bg-red-600 hover:bg-red-700"
-              >
-                {actionSending ? t("Blokiram...", "Blocking...") : t("Blokiraj", "Block")}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
+        </p>
+      </ClassicDialog>
+    </>
   );
 }

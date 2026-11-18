@@ -36,13 +36,13 @@ export default function InactivityMonitor({ isActive, onLogout, onStayActive }) 
       const inactiveTime = Date.now() - lastActivity;
       const inactiveMinutes = Math.floor(inactiveTime / 60000);
 
-      // Show warning after 14 minutes (1 minute before logout)
-      if (inactiveMinutes >= 14 && !showWarning) {
+      // Show warning after 9 minutes (1 minute before logout)
+      if (inactiveMinutes >= 9 && !showWarning) {
         setShowWarning(true);
       }
 
-      // Auto logout after 15 minutes
-      if (inactiveMinutes >= 15) {
+      // Auto logout after 10 minutes
+      if (inactiveMinutes >= 10) {
         onLogout();
       }
     }, 1000);

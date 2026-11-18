@@ -274,11 +274,15 @@ export default function AdminDashboard({ adminProfile, onLogout, onExit }) {
     [profiles]
   );
 
+  // Admin vidi samo pogovore, ki trenutno potekajo (vsaj en udeleženec je prisoten).
+  // Pogovori se ob odjavi udeleženca izbrišejo, zato starejše zgodovine ni.
   const filteredRooms = useMemo(() => {
+    const onlineIds = new Set(profiles.filter(isProfileOnline).map((p) => p.id));
+    const current = rooms.filter((room) => (room.participant_ids || []).some((id) => onlineIds.has(id)));
     const term = searchTerm.trim().toLowerCase();
-    if (!term) return rooms;
-    return rooms.filter((room) => (room.participant_names || []).some((name) => String(name || "").toLowerCase().includes(term)));
-  }, [rooms, searchTerm]);
+    if (!term) return current;
+    return current.filter((room) => (room.participant_names || []).some((name) => String(name || "").toLowerCase().includes(term)));
+  }, [rooms, profiles, searchTerm]);
 
   const handleBanProfile = async (profile, shouldBan) => {
     if (!profile?.id) return;
