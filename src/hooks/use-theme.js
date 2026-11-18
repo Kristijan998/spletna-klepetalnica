@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-const THEME_STORAGE_KEY = "theme";
+// v2: ob prenovi so vsi začeli v temni temi (stara izbira "theme" se ne upošteva več)
+const THEME_STORAGE_KEY = "theme_v2";
 
 function getSystemTheme() {
   if (typeof window === "undefined") return "light";

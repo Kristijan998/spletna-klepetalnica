@@ -360,14 +360,14 @@ export default function Home() {
   useEffect(() => {
     const isEn = language === "en";
     const manifestHref = isEn ? "/manifest.en.json" : "/manifest.sl.json";
-    const appTitle = isEn ? "Web chat" : "Klepetalnica";
-    const chromeThemeColor = darkMode ? "#162a4a" : "#f4f7ff";
+    const appTitle = "Chattko";
+    const chromeThemeColor = darkMode ? "#0e1116" : "#f6f8fa";
     const seoTitle = isEn
       ? "Chattko | Free web chat and online chat rooms"
-      : "Spletna klepetalnica Chattko | Brezplacen slovenski klepet v zivo";
+      : "Spletna klepetalnica Chattko | Brezplačen slovenski klepet v živo";
     const seoDescription = isEn
       ? "Join Chattko for free anonymous web chat. Meet new people, chat instantly, and enjoy a safe experience without registration."
-      : "Pridruzi se Chattko, najboljsi slovenski spletni klepetalnici. Klepetaj anonimno, spoznavaj nove ljudi in uzivaj v varni zabavi brez registracije.";
+      : "Pridruži se Chattku, najboljši slovenski spletni klepetalnici. Klepetaj anonimno, spoznavaj nove ljudi in uživaj v varni zabavi brez registracije.";
     const canonicalUrl = `https://www.chattko.com/?lang=${isEn ? "en" : "sl"}`;
 
     const manifestLink = document.querySelector('link#app-manifest[rel="manifest"]');
@@ -1459,19 +1459,13 @@ export default function Home() {
   const partnerName = selectedRoom?.participant_names?.find((_, idx) => selectedRoom.participant_ids?.[idx] === partnerId) || "";
   const partnerProfile = partnerId ? visibleProfiles.find((p) => p.id === partnerId) : null;
 
-  const peopleAll = [
-    { profile: myProfile, online: true },
-    ...visibleProfiles.map((p) => ({ profile: p, online: isProfileOnline(p) })),
-  ];
+  // Med prisotnimi so samo uporabniki, ki so res prijavljeni (brez nedavno odsotnih).
+  const peopleAll = [{ profile: myProfile, online: true }, ...onlineProfiles.map((p) => ({ profile: p, online: true }))];
   const peopleHere =
     selectedRoom && view === "main"
       ? [
           { profile: myProfile, online: true },
-          ...(partnerProfile
-            ? [{ profile: partnerProfile, online: isProfileOnline(partnerProfile) }]
-            : partnerId
-              ? [{ profile: { id: partnerId, display_name: partnerName }, online: false }]
-              : []),
+          ...(partnerProfile && isProfileOnline(partnerProfile) ? [{ profile: partnerProfile, online: true }] : []),
         ]
       : peopleAll;
 
@@ -1631,7 +1625,7 @@ export default function Home() {
         sl={sl}
         open={newChatOpen}
         onOpenChange={setNewChatOpen}
-        people={visibleProfiles.map((p) => ({ profile: p, online: isProfileOnline(p) }))}
+        people={onlineProfiles.map((p) => ({ profile: p, online: true }))}
         onPick={startChat}
       />
       <InactivityMonitor isActive={Boolean(myProfile?.id)} onLogout={logoutGuest} onStayActive={() => markProfileOnline(myProfile.id)} />

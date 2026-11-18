@@ -1,11 +1,11 @@
 {
-  "name": "Klepetalnica",
-  "short_name": "Klepetalnica",
-  "description": "Anonimno klepetanje v realnem casu.",
+  "name": "Chattko",
+  "short_name": "Chattko",
+  "description": "Anonimno klepetanje v realnem času.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#162a4a",
-  "theme_color": "#162a4a",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
   "icons": [
     {
       "src": "/icons/icon-192.png",

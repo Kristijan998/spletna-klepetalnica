@@ -1,9 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Klepetalnica">
-  <rect width="1200" height="630" fill="#0f172a" />
-  <rect x="80" y="80" width="1040" height="470" rx="48" fill="#111827" stroke="#1f2937" />
-  <circle cx="390" cy="315" r="60" fill="#a78bfa" />
-  <circle cx="520" cy="315" r="60" fill="#60a5fa" />
-  <path d="M320 400c70 50 150 75 230 75s160-25 230-75" stroke="#e5e7eb" stroke-width="18" fill="none" stroke-linecap="round" />
-  <text x="600" y="210" text-anchor="middle" font-family="Arial, sans-serif" font-size="54" fill="#e5e7eb">Klepetalnica</text>
-  <text x="600" y="260" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#94a3b8">Anonimno klepetanje v realnem casu</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Chattko">
+  <rect width="1200" height="630" fill="#0E1116" />
+  <rect x="80" y="80" width="1040" height="470" fill="#161A21" stroke="#272D38" stroke-width="2" />
+  <rect x="80" y="80" width="1040" height="56" fill="#1C212A" />
+  <g transform="translate(150 215) scale(7.5)">
+    <path d="M4 5h24v17H13l-6 5v-5H4z" fill="#0A84D6" />
+    <path d="M19.5 10.2a5 5 0 1 0 0 6.6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="square" />
+  </g>
+  <text x="430" y="320" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="96" font-weight="700" fill="#E6E9EE">Chattko</text>
+  <text x="434" y="385" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="32" fill="#8D96A3">Slovenska spletna klepetalnica</text>
 </svg>

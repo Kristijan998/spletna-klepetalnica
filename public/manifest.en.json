@@ -1,11 +1,11 @@
 {
-  "name": "Chat",
-  "short_name": "Chat",
+  "name": "Chattko",
+  "short_name": "Chattko",
   "description": "Anonymous real-time chat.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#162a4a",
-  "theme_color": "#162a4a",
+  "background_color": "#0e1116",
+  "theme_color": "#0e1116",
   "icons": [
     {
       "src": "/icons/icon-192.png",

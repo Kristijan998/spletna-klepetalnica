@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Klepetalnica">
-  <rect width="256" height="256" rx="48" fill="#1f2937" />
-  <circle cx="96" cy="120" r="32" fill="#a78bfa" />
-  <circle cx="160" cy="120" r="32" fill="#60a5fa" />
-  <path d="M64 176c20 16 44 24 64 24s44-8 64-24" stroke="#e5e7eb" stroke-width="12" fill="none" stroke-linecap="round" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Chattko">
+  <rect width="256" height="256" rx="40" fill="#161A21" />
+  <g transform="translate(32 32) scale(6)">
+    <path d="M4 5h24v17H13l-6 5v-5H4z" fill="#0A84D6" />
+    <path d="M19.5 10.2a5 5 0 1 0 0 6.6" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="square" />
+  </g>
 </svg>
