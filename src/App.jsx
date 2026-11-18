@@ -46,7 +46,7 @@ function App() {
       }
     };
 
-    if ("requestIdleCallback" in window) {
+    if (typeof window.requestIdleCallback === "function") {
       idleHandle = window.requestIdleCallback(() => {
         void loadAnalytics();
       }, { timeout: 5000 });

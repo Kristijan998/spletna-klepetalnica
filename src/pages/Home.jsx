@@ -40,7 +40,7 @@ function getInitialLanguage() {
     const stored = (localStorage.getItem(STORAGE_LANGUAGE) || "").toLowerCase();
     if (stored === "sl" || stored === "en") return stored;
 
-    const browserLanguage = (navigator.language || navigator.userLanguage || "").toLowerCase();
+    const browserLanguage = (navigator.language || "").toLowerCase();
     return browserLanguage.includes("sl") ? "sl" : "en";
   } catch {
     return "sl";
@@ -294,7 +294,8 @@ export default function Home() {
       if (now - lastMessageSoundAtRef.current < 700) return;
       lastMessageSoundAtRef.current = now;
 
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const legacyWindow = /** @type {Window & { webkitAudioContext?: typeof AudioContext }} */ (window);
+      const AudioCtx = window.AudioContext || legacyWindow.webkitAudioContext;
       if (!AudioCtx) return;
 
       if (!audioContextRef.current) {
@@ -1073,97 +1074,42 @@ export default function Home() {
   }, []);
 
   const onRegister = useCallback(
-    async (data) => {
+    async (name) => {
       setRegistering(true);
       try {
-        const trimmedName = String(data?.display_name || "").trim();
-        if (!trimmedName) throw new Error(language === "sl" ? "Ime manjka" : "Name is required");
-
-        const normalizedCity = String(data?.city || "").trim().toLowerCase();
-        const isAdminRegistration =
-          trimmedName === "Telebajsek1999@" &&
-          Number(data?.birth_year) === 1999 &&
-          normalizedCity === "mozirje";
-
-        if (!isAdminRegistration) {
-          const isTaken = await onCheckName(trimmedName);
-          if (isTaken) {
-            toast.error(t("register.nameTaken", language));
-            return;
-          }
+        const trimmedName = name.trim();
+        if (trimmedName.length < 3 || trimmedName.length > 15) {
+          return language === "sl" ? "Vzdevek mora imeti od 3 do 15 znakov." : "Use 3 to 15 characters for your nickname.";
         }
 
-        let sessionProfile = null;
-        let profileAction = "update";
-
-        if (isAdminRegistration) {
-          const existingByName = await db.entities.ChatProfile.filter({ display_name: trimmedName }, "-last_activity", 50);
-          const existingAdmin = (existingByName || []).find(
-            (p) =>
-              p?.is_admin === true &&
-              Number(p?.birth_year) === 1999 &&
-              String(p?.city || "").trim().toLowerCase() === "mozirje"
-          );
-
-          if (existingAdmin) {
-            sessionProfile = await db.entities.ChatProfile.update(existingAdmin.id, {
-              is_online: true,
-              is_typing: false,
-              last_activity: new Date().toISOString(),
-              logout_block_until: null,
-            });
-          }
+        if (await onCheckName(trimmedName)) {
+          return language === "sl" ? "Ta vzdevek je že zaseden." : "This nickname is already taken.";
         }
 
-        if (!sessionProfile) {
-          sessionProfile = await db.entities.ChatProfile.create({
-            display_name: trimmedName,
-            birth_year: data?.birth_year || "",
-            gender: data?.gender || "",
-            country: data?.country || "",
-            city: data?.city || "",
-            bio: data?.bio || "",
-            avatar_color: getGenderAvatarColor(data?.gender),
-            avatar_url: "",
-            gallery_images: [],
-            is_online: true,
-            last_activity: new Date().toISOString(),
-            is_typing: false,
-            blocked_users: [],
-            is_admin: isAdminRegistration,
-            is_banned: false,
-          });
-          profileAction = "create";
-        }
+        const sessionProfile = await db.entities.ChatProfile.create({
+          display_name: trimmedName,
+          avatar_color: getGenderAvatarColor(""),
+          avatar_url: "",
+          gallery_images: [],
+          is_online: true,
+          last_activity: new Date().toISOString(),
+          is_typing: false,
+          blocked_users: [],
+          is_admin: false,
+          is_banned: false,
+        });
 
         setMyProfile(sessionProfile);
-        if (isAdminRegistration) {
-          setAdminProfile(sessionProfile);
-          setView("admin");
-        }
+        setView("main");
         safeStorageSet(guestStorage, STORAGE_AUTH_PROFILE_ID, sessionProfile.id);
         safeStorageSet(guestStorage, STORAGE_GUEST_RESTORE, JSON.stringify({ profile_id: sessionProfile.id, at: Date.now() }));
-        if (isAdminRegistration) {
-          try {
-            localStorage.setItem(STORAGE_ADMIN_PROFILE_ID, sessionProfile.id);
-          } catch {
-            // ignore
-          }
-        }
 
         // Ensure profile is marked online immediately after registration
         await markProfileOnline(sessionProfile.id);
         
-        // Force immediate data load in this tab
-        setTimeout(() => {
-          if (!isAdminRegistration) {
-            loadData();
-          }
-        }, 300);
-        
         // Trigger update in other tabs via multiple channels
         try {
-          broadcastChannelRef.current?.postMessage({ entity: 'ChatProfile', action: profileAction, id: sessionProfile.id });
+          broadcastChannelRef.current?.postMessage({ entity: 'ChatProfile', action: 'create', id: sessionProfile.id });
         } catch (e) {
           console.error('BroadcastChannel send error:', e);
         }
@@ -1195,7 +1141,7 @@ export default function Home() {
         }
       } catch (error) {
         console.error("Register error:", error);
-        toast.error(error?.message || (language === "sl" ? "Registracija ni uspela" : "Registration failed"));
+        return language === "sl" ? "Vstop ni uspel. Poskusi znova." : "Could not join the chat. Try again.";
       } finally {
         setRegistering(false);
       }
@@ -1525,16 +1471,23 @@ export default function Home() {
 
   if (!myProfile) {
     return (
-      <div className={`min-h-screen w-full ${
+      <div className={`min-h-dvh w-full ${
         darkMode
           ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
           : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
       } p-4`}
       >
-        <div className="max-w-5xl mx-auto w-full">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
-            <div className="w-full sm:w-auto" />
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+        <div className="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col">
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600">
+                <MessageCircle className="h-5 w-5 text-white" aria-hidden="true" />
+              </div>
+              <span className={`text-lg font-bold tracking-tight ${darkMode ? "text-white" : "text-gray-900"}`}>
+                {t("app.title", language)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
               <LanguageSelector language={language} onChange={persistLanguage} darkMode={darkMode} />
               <Button
                 variant="ghost"
@@ -1547,16 +1500,14 @@ export default function Home() {
                 {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </Button>
             </div>
-          </div>
+          </header>
 
-          <div className="max-w-md mx-auto w-full px-4 sm:px-0">
+          <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center py-6 sm:pb-16">
             <GuestRegistration
               onRegister={onRegister}
               isLoading={registering}
               language={language}
-              onLanguageDetect={persistLanguage}
               darkMode={darkMode}
-              onCheckName={onCheckName}
             />
             <div className="mt-4 flex items-center justify-center gap-4 text-center">
               <button
@@ -1575,26 +1526,6 @@ export default function Home() {
               </button>
             </div>
           </div>
-
-          {language === "sl" && (
-            <section className={`max-w-3xl mx-auto mt-10 mb-4 px-5 py-5 rounded-xl border text-left leading-relaxed ${darkMode ? "text-gray-300 border-gray-700 bg-gray-900/40" : "text-gray-600 border-gray-200 bg-white/70"}`}>
-              <h2 className={`text-lg font-semibold mb-3 ${darkMode ? "text-white" : "text-gray-900"}`}>Zakaj izbrati Chattko spletno klepetalnico?</h2>
-              <p className="mb-3">
-                <strong>Chattko</strong> je sodobna <strong>spletna klepetalnica</strong>, namenjena vsem, ki si zelijo hitrega in varnega druzenja na spletu.
-                V casu, ko so socialna omrezja postala zapletena, Chattko vraca preprostost. Vstopis, izberes vzdevek in ze si v svetu klepeta.
-                Nasa slovenska klepetalnica omogoca:
-              </p>
-              <ul className="list-disc pl-6 mb-3">
-                <li>Popolnoma anonimen klepet brez nepotrebne registracije.</li>
-                <li>Spoznavanje novih ljudi iz vseh koncev Slovenije v realnem casu.</li>
-                <li>Varno okolje za sproscen pogovor in druzenje.</li>
-              </ul>
-              <p>
-                Ne glede na to, ali isces nove prijatelje ali le sproscen vecerni klepet, je <strong>slovenski chat Chattko</strong> prava izbira zate.
-                Pridruzi se nam se danes in preveri, zakaj smo postali priljubljena tocka za spletno klepetanje.
-              </p>
-            </section>
-          )}
         </div>
       </div>
     );

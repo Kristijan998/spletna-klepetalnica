@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, ArrowLeft, Users, Image as ImageIcon, X, Camera, Smile, Check, CheckCheck } from "lucide-react";
-import EmojiPicker from "emoji-picker-react";
+import EmojiPicker, { Theme } from "emoji-picker-react";
 import GroupMembers from "./GroupMembers";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -368,7 +368,7 @@ export default function GroupChat({ group, myProfileId, myName, onBack, language
           <div className="absolute bottom-full right-4 mb-2 z-10">
             <EmojiPicker
               onEmojiClick={onEmojiClick}
-              theme={darkMode ? "dark" : "light"}
+              theme={darkMode ? Theme.DARK : Theme.LIGHT}
               width={320}
               height={400}
             />

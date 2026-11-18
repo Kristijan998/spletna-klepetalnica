@@ -10,13 +10,10 @@ const sentryDsn = import.meta.env.VITE_SENTRY_DSN
 
 async function initSentry() {
   if (!sentryDsn) return;
-  const [Sentry, { BrowserTracing }] = await Promise.all([
-    import('@sentry/react'),
-    import('@sentry/tracing'),
-  ]);
+  const Sentry = await import('@sentry/react');
   Sentry.init({
     dsn: sentryDsn,
-    integrations: [new BrowserTracing()],
+    integrations: [Sentry.browserTracingIntegration()],
     tracesSampleRate: 0.1,
     environment: import.meta.env.MODE,
   });

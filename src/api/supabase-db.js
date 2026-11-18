@@ -60,6 +60,7 @@ function createEntityRepo(supabase, tableName) {
   };
 
   const create = async (data = {}) => {
+    /** @type {Record<string, unknown>} */
     let payload = { ...data };
 
     // Compatibility fallback: if schema is missing a column (e.g. read_by/read_at),
@@ -82,6 +83,7 @@ function createEntityRepo(supabase, tableName) {
   };
 
   const update = async (id, patch = {}) => {
+    /** @type {Record<string, unknown>} */
     let payload = { ...patch, updated_date: nowIso() };
 
     // Compatibility fallback: if schema is missing a column (e.g. read_by/read_at),

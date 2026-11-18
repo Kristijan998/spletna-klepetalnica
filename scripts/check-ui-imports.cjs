@@ -45,4 +45,4 @@ for (const r of results) {
   console.log(`${r.file} -> import "${r.import}" : exactExists=${r.existsExact} ${r.found ? `; case-insensitive match -> "${r.found}"` : '; NO match in ui dir'}`);
 }
 
-process.exit(0);
+process.exitCode = 1;
