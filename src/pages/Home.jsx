@@ -17,6 +17,7 @@ import {
 
 import LanguageSelector from "@/components/LanguageSelector";
 import GuestRegistration from "@/components/chat/GuestRegistration";
+import PublicChat, { PUBLIC_CHAT_ID } from "@/components/chat/PublicChat";
 import UserCard from "@/components/chat/UserCard";
 import InactivityMonitor from "@/components/chat/InactivityMonitor";
 
@@ -215,7 +216,7 @@ export default function Home() {
   const guestStorage = typeof window !== "undefined" ? window.sessionStorage : null;
 
   const [language, setLanguage] = useState(getInitialLanguage);
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("public");
 
   const [myProfile, setMyProfile] = useState(null);
   const [adminProfile, setAdminProfile] = useState(null);
@@ -800,7 +801,7 @@ export default function Home() {
 
       const processedGroups = [];
       for (const group of allGroups || []) {
-        if (!group?.id) continue;
+        if (!group?.id || group.id === PUBLIC_CHAT_ID) continue;
 
         const memberIds = Array.isArray(group.member_ids) ? group.member_ids : [];
         const activeMembers = memberIds.filter((id) => {
@@ -1100,6 +1101,7 @@ export default function Home() {
         });
 
         setMyProfile(sessionProfile);
+        setActiveTab("public");
         setView("main");
         safeStorageSet(guestStorage, STORAGE_AUTH_PROFILE_ID, sessionProfile.id);
         safeStorageSet(guestStorage, STORAGE_GUEST_RESTORE, JSON.stringify({ profile_id: sessionProfile.id, at: Date.now() }));
@@ -1635,15 +1637,20 @@ export default function Home() {
     );
   }
 
+  const presentProfiles = [myProfile, ...profiles.filter(isProfileOnline)];
+  const tabClass = `flex-1 justify-center gap-1.5 rounded-lg px-2 text-xs lg:w-full lg:flex-none lg:justify-start lg:px-3 lg:text-sm ${
+    darkMode ? "data-[state=active]:bg-violet-900/50 data-[state=active]:text-violet-300" : "data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700"
+  }`;
+
   return (
     <div
-      className={`min-h-screen pb-24 ${
+      className={`min-h-dvh ${
         darkMode
           ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
           : "bg-gradient-to-br from-violet-50 via-white to-indigo-50"
       } p-4`}
     >
-      <div className="max-w-2xl mx-auto px-4 py-6">
+      <div className="mx-auto max-w-screen-2xl py-2 sm:px-4 sm:py-4">
         {mainHeader}
 
         {!isOnline && (
@@ -1653,23 +1660,31 @@ export default function Home() {
         )}
 
         {/* Tabs with content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4">
-          <TabsList className={`${darkMode ? "bg-gray-800/80 border-gray-700" : "bg-white/80 border-gray-100"} backdrop-blur border rounded-xl p-1 w-full`}>
-            <TabsTrigger value="users" className={`flex-1 rounded-lg gap-1.5 text-xs ${darkMode ? "data-[state=active]:bg-violet-900/50 data-[state=active]:text-violet-300" : "data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700"}`}>
-                <Users className="w-4 h-4" />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="grid gap-3 lg:grid-cols-[12rem_minmax(0,1fr)_13rem]">
+          <TabsList aria-label={language === "sl" ? "Pogovori" : "Conversations"} className="h-auto w-full justify-start overflow-x-auto rounded-2xl border bg-card p-2 dark:border-gray-700 dark:bg-gray-800 lg:flex-col lg:items-stretch">
+            <TabsTrigger value="public" className={tabClass}>
+              <span aria-hidden="true">#</span>
+              {language === "sl" ? "Splošno" : "General"}
+            </TabsTrigger>
+            <TabsTrigger value="users" className={tabClass}>
+                <Users className="hidden size-4 sm:block" aria-hidden="true" />
                 {t("tabs.users", language)}
               </TabsTrigger>
-            <TabsTrigger value="groups" className={`flex-1 rounded-lg gap-1.5 text-xs ${darkMode ? "data-[state=active]:bg-violet-900/50 data-[state=active]:text-violet-300" : "data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700"}`}>
-                <MessagesSquare className="w-4 h-4" />
+            <TabsTrigger value="groups" className={tabClass}>
+                <MessagesSquare className="hidden size-4 sm:block" aria-hidden="true" />
                 {t("tabs.groups", language)}
               </TabsTrigger>
-            <TabsTrigger value="history" className={`flex-1 rounded-lg gap-1.5 text-xs ${darkMode ? "data-[state=active]:bg-violet-900/50 data-[state=active]:text-violet-300" : "data-[state=active]:bg-violet-50 data-[state=active]:text-violet-700"}`}>
-                <History className="w-4 h-4" />
+            <TabsTrigger value="history" className={tabClass}>
+                <History className="hidden size-4 sm:block" aria-hidden="true" />
                 {t("tabs.history", language)}
               </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users">
+          <TabsContent value="public" className="mt-0 min-w-0">
+            <PublicChat key={myProfile.id} profile={myProfile} language={language} isOnline={isOnline} />
+          </TabsContent>
+
+          <TabsContent value="users" className="mt-0 min-w-0">
             {profiles.length === 0 ? (
               <div className={`text-center py-16 ${darkMode ? "text-gray-500" : "text-gray-400"}`}>
                 <Users className="w-10 h-10 mx-auto mb-3 opacity-50" />
@@ -1693,7 +1708,7 @@ export default function Home() {
             )}
           </TabsContent>
 
-          <TabsContent value="groups">
+          <TabsContent value="groups" className="mt-0 min-w-0">
             <Suspense fallback={null}>
               <GroupList
                 groups={groups}
@@ -1709,11 +1724,32 @@ export default function Home() {
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="history">
+          <TabsContent value="history" className="mt-0 min-w-0">
             <Suspense fallback={null}>
               <ChatHistory rooms={rooms} myProfileId={myProfile.id} onOpenRoom={onOpenRoomFromHistory} language={language} />
             </Suspense>
           </TabsContent>
+
+          <aside className="hidden min-w-0 rounded-2xl border bg-card text-card-foreground dark:border-gray-700 dark:bg-gray-800 lg:col-start-3 lg:row-start-1 lg:block">
+            <h2 className="flex items-center justify-between gap-2 border-b px-4 py-3 font-semibold">
+              {language === "sl" ? "Prisotni" : "Online"}
+              <span className="rounded-lg bg-violet-500/15 px-2 py-0.5 text-sm tabular-nums">{presentProfiles.length}</span>
+            </h2>
+            <ul className="max-h-[max(18rem,calc(100dvh-16rem))] space-y-1 overflow-y-auto p-2">
+              {presentProfiles.map((profile) => (
+                <li key={profile.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5">
+                  <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-green-500" />
+                  {profile.id === myProfile.id ? (
+                    <span className="truncate text-sm">{profile.display_name}</span>
+                  ) : (
+                    <button type="button" onClick={() => void openOrCreateRoom(profile)} className="min-w-0 truncate rounded text-left text-sm hover:text-violet-600 focus-visible:outline focus-visible:outline-violet-500 dark:hover:text-violet-300">
+                      {profile.display_name}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </aside>
         </Tabs>
       </div>
 
