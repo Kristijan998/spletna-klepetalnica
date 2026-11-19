@@ -39,6 +39,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SUPABASE_BUCKET: ${{ secrets.VITE_SUPABASE_BUCKET }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_ADMIN_LOGIN_CODE: ${{ secrets.VITE_ADMIN_LOGIN_CODE }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { db, getDatabaseIdentity, isLocalDb, prepareGuestDatabaseSession, signInDatabaseAdmin, signOutDatabaseAdmin } from "@/api/db";
+import { db, isLocalDb } from "@/api/db";
 import { toast } from "sonner";
 import { acquireBrowserSession } from "@/lib/browser-session";
 import {
@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 
 import GuestRegistration from "@/components/chat/GuestRegistration";
-import AdminSignIn from "@/components/chat/AdminSignIn";
 import PublicChat, { PUBLIC_CHAT_ID } from "@/components/chat/PublicChat";
 import InactivityMonitor from "@/components/chat/InactivityMonitor";
 import { ClassicWindow, NewChatDialog, PresenceList, ProfileDialog, ToolButton, TreeNav } from "@/components/chat/ClassicLayout";
@@ -250,8 +249,8 @@ export default function Home() {
   const [loadingRestore, setLoadingRestore] = useState(() => {
     if (typeof window === "undefined") return true;
     try {
+      if (localStorage.getItem(STORAGE_ADMIN_PROFILE_ID)) return true;
       const session = window.sessionStorage;
-      if (session?.getItem(STORAGE_ADMIN_PROFILE_ID)) return true;
       const authId = session?.getItem(STORAGE_AUTH_PROFILE_ID) || localStorage.getItem(STORAGE_AUTH_PROFILE_ID);
       const restoreRaw = session?.getItem(STORAGE_GUEST_RESTORE) || localStorage.getItem(STORAGE_GUEST_RESTORE);
       return Boolean(authId || restoreRaw);
@@ -260,25 +259,6 @@ export default function Home() {
     }
   });
   const [registering, setRegistering] = useState(false);
-  const [showAdminSignIn, setShowAdminSignIn] = useState(() =>
-    !isLocalDb && typeof window !== "undefined" && window.location.hash === "#skrbnik"
-  );
-
-  const closeAdminSignIn = () => {
-    const url = new URL(window.location.href);
-    if (url.hash === "#skrbnik") {
-      url.hash = "";
-      window.history.replaceState(window.history.state, "", url);
-    }
-    setShowAdminSignIn(false);
-  };
-
-  useEffect(() => {
-    if (isLocalDb) return;
-    const update = () => setShowAdminSignIn(window.location.hash === "#skrbnik");
-    window.addEventListener("hashchange", update);
-    return () => window.removeEventListener("hashchange", update);
-  }, []);
 
   const [profiles, setProfiles] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -496,8 +476,6 @@ export default function Home() {
     if (!id) return null;
     const matches = await db.entities.ChatProfile.filter({ id });
     const profile = matches?.[0] || null;
-    const identity = await getDatabaseIdentity();
-    if (identity && (!identity.userId || profile?.owner_id !== identity.userId)) return null;
     
     // Migration: Add is_banned field to old profiles
     if (profile && profile.is_banned === undefined) {
@@ -544,7 +522,11 @@ export default function Home() {
   }, []);
 
   const clearAdminAuth = useCallback(() => {
-    safeStorageRemove(guestStorage, STORAGE_ADMIN_PROFILE_ID);
+    try {
+      localStorage.removeItem(STORAGE_ADMIN_PROFILE_ID);
+    } catch {
+      // ignore
+    }
   }, []);
 
   const logoutGuest = useCallback(async (options = {}) => {
@@ -600,22 +582,15 @@ export default function Home() {
     setView("main");
     clearAdminAuth();
     clearGuestAuth();
-    try {
-      if (id) await markProfileOffline(id);
-      await signOutDatabaseAdmin();
-    } catch (error) {
-      console.error("Could not sign out the administrator:", error);
-      toast.error(language === "sl" ? "Odjava skrbniškega računa ni uspela." : "Could not sign out the administrator account.");
-    } finally {
-      release?.();
-      if (sessionLock.current === release) sessionLock.current = null;
-    }
-  }, [adminProfile?.id, myProfile?.id, clearAdminAuth, clearGuestAuth, markProfileOffline, language]);
+    if (id) await markProfileOffline(id);
+    release?.();
+    if (sessionLock.current === release) sessionLock.current = null;
+  }, [adminProfile?.id, myProfile?.id, clearAdminAuth, clearGuestAuth, markProfileOffline]);
 
   const restoreSession = useCallback(async () => {
     const hasStoredSession = (() => {
       try {
-        if (safeStorageGet(guestStorage, STORAGE_ADMIN_PROFILE_ID)) return true;
+        if (localStorage.getItem(STORAGE_ADMIN_PROFILE_ID)) return true;
         const authId = safeStorageGet(guestStorage, STORAGE_AUTH_PROFILE_ID) || localStorage.getItem(STORAGE_AUTH_PROFILE_ID);
         const restoreRaw = safeStorageGet(guestStorage, STORAGE_GUEST_RESTORE) || localStorage.getItem(STORAGE_GUEST_RESTORE);
         return Boolean(authId || restoreRaw);
@@ -636,11 +611,10 @@ export default function Home() {
       release = await acquireBrowserSession();
       if (!release) return;
       sessionLock.current = release;
-      const adminId = safeStorageGet(guestStorage, STORAGE_ADMIN_PROFILE_ID);
+      const adminId = localStorage.getItem(STORAGE_ADMIN_PROFILE_ID);
       if (adminId) {
         const restoredAdmin = await loadProfileById(adminId);
-        const identity = await getDatabaseIdentity();
-        if (restoredAdmin?.is_admin && !restoredAdmin.is_banned && identity?.isAdmin) {
+        if (restoredAdmin) {
           restoredSession = true;
           setAdminProfile(restoredAdmin);
           setView("admin");
@@ -648,7 +622,6 @@ export default function Home() {
           return;
         }
         clearAdminAuth();
-        if (identity?.isAdmin) await signOutDatabaseAdmin();
       }
 
       // Prefer per-tab session storage for guests.
@@ -1202,7 +1175,6 @@ export default function Home() {
             : "You are already signed in in another tab. Sign out there or close that tab.";
         }
         sessionLock.current = release;
-        await prepareGuestDatabaseSession();
 
         if (await onCheckName(trimmedName)) {
           return language === "sl" ? "Ta vzdevek je že zaseden." : "This nickname is already taken.";
@@ -1276,61 +1248,6 @@ export default function Home() {
     },
     [language, onCheckName]
   );
-
-  const onAdminSignIn = async (email, password) => {
-    let release;
-    let signedIn = false;
-    let opened = false;
-    setRegistering(true);
-    try {
-      if (!navigator.locks) {
-        return language === "sl" ? "Za vstop uporabi novejši brskalnik." : "Use a newer browser to sign in.";
-      }
-      release = await acquireBrowserSession();
-      if (!release) {
-        return language === "sl" ? "V tem brskalniku je že odprta druga prijava." : "Another tab in this browser is already signed in.";
-      }
-      sessionLock.current = release;
-      const userId = await signInDatabaseAdmin(email, password);
-      signedIn = true;
-      const findProfile = async () => (
-        await db.entities.ChatProfile.filter({ owner_id: userId, is_admin: true }, "-created_date", 1)
-      )[0];
-      let profile = await findProfile();
-      if (!profile) {
-        try {
-          profile = await db.entities.ChatProfile.create({
-            owner_id: userId,
-            display_name: "Admin",
-            is_guest: false,
-            is_admin: true,
-          });
-        } catch (error) {
-          profile = await findProfile();
-          if (!profile) throw error;
-        }
-      }
-      if (profile.is_banned) throw new Error("Administrator profile is disabled");
-
-      clearGuestAuth();
-      safeStorageSet(guestStorage, STORAGE_ADMIN_PROFILE_ID, profile.id);
-      setAdminProfile(profile);
-      closeAdminSignIn();
-      setView("admin");
-      opened = true;
-      await markProfileOnline(profile.id);
-    } catch (error) {
-      if (signedIn && !opened) await signOutDatabaseAdmin().catch(console.error);
-      console.error("Administrator sign-in failed:", error);
-      return language === "sl" ? "Skrbniška prijava ni uspela." : "Administrator sign-in failed.";
-    } finally {
-      if (release && !opened) {
-        release();
-        if (sessionLock.current === release) sessionLock.current = null;
-      }
-      setRegistering(false);
-    }
-  };
 
   const openOrCreateRoom = useCallback(
     async (targetProfile) => {
@@ -1526,7 +1443,7 @@ export default function Home() {
           </div>
         }
       >
-        <AdminDashboard adminProfile={adminProfile} onLogout={logoutAdmin} onExit={logoutAdmin} />
+        <AdminDashboard adminProfile={adminProfile} onLogout={logoutAdmin} onExit={() => setView("main")} />
       </Suspense>
     );
   }
@@ -1557,11 +1474,7 @@ export default function Home() {
       >
         <main className="k-entry">
           <div className="k-entrybox">
-            {showAdminSignIn ? (
-              <AdminSignIn language={language} isLoading={registering} onSignIn={onAdminSignIn} onCancel={closeAdminSignIn} />
-            ) : (
-              <GuestRegistration onRegister={onRegister} isLoading={registering} language={language} />
-            )}
+            <GuestRegistration onRegister={onRegister} isLoading={registering} language={language} />
             <div className="k-links">
               <button type="button" className="k-link" onClick={() => (window.location.href = createPageUrl("PrivacyPolicy"))}>
                 {t("privacy.title", language)}
