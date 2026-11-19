@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db, isLocalDb } from "@/api/db";
 import { toast } from "sonner";
+import { acquireBrowserSession } from "@/lib/browser-session";
 import {
   Home as HomeIcon,
   LifeBuoy,
@@ -235,6 +236,7 @@ export default function Home() {
 
   // Guest session must be per-tab so we can test multiple guests locally.
   // localStorage is shared across tabs and would overwrite auth in other tab.
+  const sessionLock = useRef(null);
   const guestStorage = typeof window !== "undefined" ? window.sessionStorage : null;
 
   const [language, setLanguage] = useState(getInitialLanguage);
@@ -361,7 +363,7 @@ export default function Home() {
     const isEn = language === "en";
     const manifestHref = isEn ? "/manifest.en.json" : "/manifest.sl.json";
     const appTitle = "Chattko";
-    const chromeThemeColor = darkMode ? "#0e1116" : "#f6f8fa";
+    const chromeThemeColor = darkMode ? "#0e1116" : "#efede7";
     const seoTitle = isEn
       ? "Chattko | Free web chat and online chat rooms"
       : "Spletna klepetalnica Chattko | Brezplačen slovenski klepet v živo";
@@ -527,6 +529,7 @@ export default function Home() {
   }, []);
 
   const logoutGuest = useCallback(async (options = {}) => {
+    const release = sessionLock.current;
     // By default preserve the profile but mark it offline and block immediate re-login
     const { preserveProfile = true } = options;
     const id = myProfile?.id;
@@ -564,9 +567,12 @@ export default function Home() {
     if (adminId && adminId !== id) {
       await markProfileOffline(adminId);
     }
+    release?.();
+    if (sessionLock.current === release) sessionLock.current = null;
   }, [adminProfile?.id, myProfile?.id, clearAdminAuth, clearGuestAuth, markProfileOffline]);
 
   const logoutAdmin = useCallback(async () => {
+    const release = sessionLock.current;
     const id = adminProfile?.id || myProfile?.id;
     setAdminProfile(null);
     setMyProfile(null);
@@ -576,6 +582,8 @@ export default function Home() {
     clearAdminAuth();
     clearGuestAuth();
     if (id) await markProfileOffline(id);
+    release?.();
+    if (sessionLock.current === release) sessionLock.current = null;
   }, [adminProfile?.id, myProfile?.id, clearAdminAuth, clearGuestAuth, markProfileOffline]);
 
   const restoreSession = useCallback(async () => {
@@ -596,11 +604,17 @@ export default function Home() {
     }
 
     setLoadingRestore(true);
+    let release;
+    let restoredSession = false;
     try {
+      release = await acquireBrowserSession();
+      if (!release) return;
+      sessionLock.current = release;
       const adminId = localStorage.getItem(STORAGE_ADMIN_PROFILE_ID);
       if (adminId) {
         const restoredAdmin = await loadProfileById(adminId);
         if (restoredAdmin) {
+          restoredSession = true;
           setAdminProfile(restoredAdmin);
           setView("admin");
           await markProfileOnline(restoredAdmin.id);
@@ -631,6 +645,16 @@ export default function Home() {
       const restoreId = authId || restoreBlob?.profile_id || restoreBlob?.id || null;
       if (!restoreId) return;
 
+      const scheduleKey = `logout_scheduled_${restoreId}`;
+      const schedule = safeJsonParse(safeStorageGet(window.localStorage, scheduleKey));
+      safeStorageRemove(window.localStorage, scheduleKey);
+      if (schedule && Date.now() - schedule.scheduledTime >= 10 * 60 * 1000) {
+        await deleteRoomsOf(restoreId);
+        await db.entities.ChatProfile.delete(restoreId).catch(console.error);
+        clearGuestAuth();
+        return;
+      }
+
       const restored = await loadProfileById(restoreId);
       if (restored?.is_banned === true) {
         toast.error(language === "sl" ? "Tvoj dostop je bil blokiran." : "Your access has been blocked.");
@@ -640,6 +664,7 @@ export default function Home() {
       }
 
       if (restored) {
+        restoredSession = true;
         setMyProfile(restored);
         await markProfileOnline(restored.id);
         safeStorageSet(guestStorage, STORAGE_AUTH_PROFILE_ID, restored.id);
@@ -647,10 +672,33 @@ export default function Home() {
       } else {
         clearGuestAuth();
       }
+    } catch (error) {
+      console.error("Could not restore the chat session:", error);
     } finally {
+      if (release && !restoredSession) {
+        release();
+        sessionLock.current = null;
+      }
       setLoadingRestore(false);
     }
   }, [clearAdminAuth, clearGuestAuth, loadProfileById, markProfileOnline]);
+
+  useEffect(() => {
+    const release = () => {
+      sessionLock.current?.();
+      sessionLock.current = null;
+    };
+    const onPageShow = (event) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener("pagehide", release);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.removeEventListener("pagehide", release);
+      window.removeEventListener("pageshow", onPageShow);
+      release();
+    };
+  }, []);
 
   useEffect(() => {
     restoreSession();
@@ -1105,11 +1153,24 @@ export default function Home() {
   const onRegister = useCallback(
     async (name) => {
       setRegistering(true);
+      let release;
+      let registered = false;
       try {
         const trimmedName = name.trim();
         if (trimmedName.length < 3 || trimmedName.length > 15) {
           return language === "sl" ? "Vzdevek mora imeti od 3 do 15 znakov." : "Use 3 to 15 characters for your nickname.";
         }
+
+        if (!navigator.locks) {
+          return language === "sl" ? "Za vstop uporabi novejši brskalnik." : "Use a newer browser to join.";
+        }
+        release = await acquireBrowserSession();
+        if (!release) {
+          return language === "sl"
+            ? "V tem brskalniku si že prijavljen v drugem zavihku. Odjavi se tam ali zapri zavihek."
+            : "You are already signed in in another tab. Sign out there or close that tab.";
+        }
+        sessionLock.current = release;
 
         if (await onCheckName(trimmedName)) {
           return language === "sl" ? "Ta vzdevek je že zaseden." : "This nickname is already taken.";
@@ -1128,6 +1189,7 @@ export default function Home() {
           is_banned: false,
         });
 
+        registered = true;
         setMyProfile(sessionProfile);
         setActiveTab("public");
         setView("main");
@@ -1173,6 +1235,10 @@ export default function Home() {
         console.error("Register error:", error);
         return language === "sl" ? "Vstop ni uspel. Poskusi znova." : "Could not join the chat. Try again.";
       } finally {
+        if (release && !registered) {
+          release();
+          sessionLock.current = null;
+        }
         setRegistering(false);
       }
     },
@@ -1354,39 +1420,6 @@ export default function Home() {
     };
   }, [myProfile?.id, logoutGuest]);
 
-  // Check if user should be auto-logged out on app start
-  useEffect(() => {
-    const checkScheduledLogouts = async () => {
-      try {
-        const profileId = safeStorageGet(guestStorage, STORAGE_AUTH_PROFILE_ID);
-        if (!profileId) return;
-
-        const logoutSchedule = localStorage.getItem(`logout_scheduled_${profileId}`);
-        if (!logoutSchedule) return;
-
-        const { scheduledTime } = JSON.parse(logoutSchedule);
-        const elapsedMs = Date.now() - scheduledTime;
-        const AUTO_LOGOUT_MS = 10 * 60 * 1000;
-
-        if (elapsedMs >= AUTO_LOGOUT_MS) {
-          await deleteRoomsOf(profileId);
-          try {
-            await db.entities.ChatProfile.delete(profileId);
-          } catch (err) {
-            console.error("Error deleting profile:", err);
-          }
-          safeStorageRemove(guestStorage, STORAGE_AUTH_PROFILE_ID);
-          safeStorageRemove(guestStorage, STORAGE_GUEST_RESTORE);
-          localStorage.removeItem(`logout_scheduled_${profileId}`);
-          window.location.reload();
-        }
-      } catch (err) {
-        console.error("Error checking scheduled logouts:", err);
-      }
-    };
-
-    checkScheduledLogouts();
-  }, []);
 
   if (loadingRestore) {
     return (
