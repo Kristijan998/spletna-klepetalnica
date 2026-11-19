@@ -28,7 +28,7 @@ export function ClassicWindow({ subtitle, toolbar, children, status }) {
   );
 }
 
-export function ToolButton({ icon: Icon, label, onClick, pressed, danger, title }) {
+export function ToolButton({ icon: Icon, label, onClick, pressed = undefined, danger = false, title = undefined }) {
   return (
     <button
       type="button"
@@ -65,7 +65,7 @@ export function genderShort(gender) {
   return "";
 }
 
-export function Avatar({ profile, className = "k-av", size }) {
+export function Avatar({ profile, className = "k-av", size = undefined }) {
   const style = size ? { width: size, height: size, fontSize: Math.round(size * 0.4) } : undefined;
   if (profile?.avatar_url) {
     return <img src={profile.avatar_url} alt="" className={className} style={style} />;
@@ -88,7 +88,7 @@ export function TreeNav({ sl, selected, conversations, onSelect }) {
       return next;
     });
 
-  const Leaf = ({ id, icon: Icon, label, count }) => (
+  const Leaf = ({ id, icon: Icon, label, count = 0 }) => (
     <li>
       <button type="button" className={`k-node${selected === id ? " k-sel" : ""}`} onClick={() => onSelect(id)} aria-current={selected === id ? "page" : undefined}>
         <span className="k-tw" />
@@ -118,6 +118,7 @@ export function TreeNav({ sl, selected, conversations, onSelect }) {
         <Leaf id="home" icon={HomeIcon} label={sl ? "Pregled" : "Overview"} />
         <Folder k="channels" icon={MessagesSquare} color="var(--k-accent)" label={sl ? "Kanali" : "Channels"}>
           <Leaf id="public" icon={Hash} label={sl ? "# Splošno" : "# General"} />
+        <Leaf id="groups" icon={MessagesSquare} label={sl ? "Skupine" : "Groups"} />
         </Folder>
         <Folder k="private" icon={Mail} color="var(--k-success)" label={sl ? "Zasebni pogovori" : "Private chats"}>
           {conversations.length === 0 ? (
@@ -177,7 +178,7 @@ export function PresenceList({ sl, people, myId, selectedId, onPick, onOpenChat 
 }
 
 /* Klasično pogovorno okno (naslovna vrstica + vsebina + gumbi) */
-export function ClassicDialog({ open, onOpenChange, title, description, children, footer, wide }) {
+export function ClassicDialog({ open, onOpenChange, title, description = undefined, children, footer = undefined, wide = false }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="k-dialog" style={{ maxWidth: wide ? 520 : 420 }}>

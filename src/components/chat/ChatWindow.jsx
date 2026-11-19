@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { db } from "@/api/db";
 import { Paperclip, Camera, Smile, Download, Image as ImageIcon, Loader2, Ban, Flag, User } from "lucide-react";
-import EmojiPicker from "emoji-picker-react";
+import EmojiPicker, { Theme } from "emoji-picker-react";
 import { toast } from "sonner";
 import { Avatar, ClassicDialog, ProfileDialog, getAge } from "@/components/chat/ClassicLayout";
 
@@ -717,7 +717,7 @@ export default function ChatWindow({ room, myProfileId, myName, partnerName, onB
         </button>
         {showEmojiPicker && (
           <div className="k-emoji-pop">
-            <EmojiPicker onEmojiClick={onEmojiClick} width={300} height={380} theme={darkMode ? "dark" : "light"} />
+            <EmojiPicker onEmojiClick={onEmojiClick} width={300} height={380} theme={darkMode ? Theme.DARK : Theme.LIGHT} />
           </div>
         )}
         <input

@@ -8,9 +8,19 @@ if (!fs.existsSync(distIndexPath)) {
 }
 
 const html = fs.readFileSync(distIndexPath, "utf8");
+// GitHub Pages serves clean SPA URLs as static directory indexes.
+function writePages(content) {
+  for (const route of ["Home", "PrivacyPolicy", "TermsOfUse", "ChatDashboard"]) {
+    const directory = path.join(path.dirname(distIndexPath), route);
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(directory, "index.html"), content, "utf8");
+  }
+}
+
 const stylesheetMatch = html.match(/<link rel="stylesheet"[^>]*href="([^"]+\.css)"[^>]*>/i);
 
 if (!stylesheetMatch) {
+  writePages(html);
   process.exit(0);
 }
 
@@ -22,9 +32,11 @@ const fallbackStylesTag = `<noscript><link rel="stylesheet"${crossoriginAttr} hr
 const plainPreloadTag = `<link rel="preload" href="${cssHref}" as="style">`;
 
 if (html.includes("onload=\"this.onload=null;this.rel='stylesheet'\"")) {
+  writePages(html);
   process.exit(0);
 }
 
 const cleaned = html.replace(plainPreloadTag, "").replace(/\n{3,}/g, "\n\n");
 const updated = cleaned.replace(stylesheetMatch[0], `${asyncStylesTag}\n    ${fallbackStylesTag}`);
 fs.writeFileSync(distIndexPath, updated, "utf8");
+writePages(updated);

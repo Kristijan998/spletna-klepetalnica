@@ -1,5 +1,5 @@
 -- Supabase schema for multi-user chat
--- Run in Supabase SQL editor.
+-- Run in Supabase SQL editor, then apply migrations/202611180001_chat_privacy.sql.
 
 create extension if not exists pgcrypto;
 
@@ -152,11 +152,7 @@ create table if not exists public.login_events (
   user_agent text
 );
 
--- NOTE:
--- For quick MVP testing you can leave RLS disabled.
--- For production, enable RLS and add policies that match your privacy/security expectations.
-
--- RLS: authenticated users only
+-- Keep private tables closed until the privacy migration installs their policies.
 alter table public.chat_profiles enable row level security;
 alter table public.chat_rooms enable row level security;
 alter table public.chat_messages enable row level security;
@@ -164,36 +160,6 @@ alter table public.chat_groups enable row level security;
 alter table public.group_messages enable row level security;
 alter table public.support_messages enable row level security;
 alter table public.login_events enable row level security;
-
-create policy chat_profiles_auth_all on public.chat_profiles
-  for all to authenticated
-  using (true)
-  with check (true);
-
-create policy chat_profiles_anon_all on public.chat_profiles
-  for all to anon
-  using (true)
-  with check (true);
-
-create policy chat_rooms_auth_all on public.chat_rooms
-  for all to authenticated
-  using (true)
-  with check (true);
-
-create policy chat_rooms_anon_all on public.chat_rooms
-  for all to anon
-  using (true)
-  with check (true);
-
-create policy chat_messages_auth_all on public.chat_messages
-  for all to authenticated
-  using (true)
-  with check (true);
-
-create policy chat_messages_anon_all on public.chat_messages
-  for all to anon
-  using (true)
-  with check (true);
 
 create policy chat_groups_auth_all on public.chat_groups
   for all to authenticated
@@ -211,26 +177,6 @@ create policy group_messages_auth_all on public.group_messages
   with check (true);
 
 create policy group_messages_anon_all on public.group_messages
-  for all to anon
-  using (true)
-  with check (true);
-
-create policy support_messages_auth_all on public.support_messages
-  for all to authenticated
-  using (true)
-  with check (true);
-
-create policy support_messages_anon_all on public.support_messages
-  for all to anon
-  using (true)
-  with check (true);
-
-create policy login_events_auth_all on public.login_events
-  for all to authenticated
-  using (true)
-  with check (true);
-
-create policy login_events_anon_all on public.login_events
   for all to anon
   using (true)
   with check (true);

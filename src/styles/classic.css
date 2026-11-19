@@ -1,18 +1,18 @@
 /* Klasični videz (v slogu SMS Centra): okno z orodno vrstico, drevesom, pogovorom, prisotnimi in statusno vrstico. */
 :root {
-  --k-bg: #ebe9e3;
-  --k-surface: #f7f5f0;
-  --k-surface2: #efede7;
-  --k-border: #dad7cf;
+  --k-bg: #ebdfcd;
+  --k-surface: #f5e9d6;
+  --k-surface2: #efe3d0;
+  --k-border: #d8c9b2;
   --k-text: #141821;
-  --k-muted: #616a75;
+  --k-muted: #5e605e;
   --k-accent: #0a84d6;
   --k-accent-text: #ffffff;
   --k-success: #16a34a;
   --k-warning: #d97706;
   --k-danger: #dc2626;
   --k-sel: #dceefb;
-  --k-hover: #e8e6df;
+  --k-hover: #e8dac4;
   --k-nick: #0b5fa5;
   --k-warnbg: #fef3c7;
   --k-shade: rgb(20 24 33 / 0.35);
